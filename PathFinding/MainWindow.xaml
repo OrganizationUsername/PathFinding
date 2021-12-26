@@ -12,12 +12,12 @@
     <Window.Resources>
         <ContextMenu x:Key="myMenu">
             <MenuItem Header="Item 1" Click="MenuItem_Click"></MenuItem>
-            <MenuItem Header="Item 2"/>
-            <MenuItem Header="Item 3"/>
+            <MenuItem Header="Nothing 2"/>
+            <MenuItem Header="Nothing 3"/>
         </ContextMenu>
     </Window.Resources>
-    <StackPanel Orientation="Horizontal">
-        <TabControl Width="110">
+    <DockPanel >
+        <TabControl Width="110" DockPanel.Dock="Left">
             <TabItem Header="First">
                 <DockPanel LastChildFill="False">
                     <TextBlock Text="{Binding HoveredEntityDescription}" DockPanel.Dock="Top"/>
@@ -89,7 +89,8 @@
                MouseLeftButtonDown="UIElement_OnMouseLeftButtonDown" 
                MouseRightButtonDown="UIElement_OnMouseRightButtonDown"
                MouseLeftButtonUp="UIElement_OnMouseLeftButtonUp"
-               MouseWheel="TextImage_OnMouseWheel"/>
+               MouseWheel="TextImage_OnMouseWheel"
+               ContextMenu="{StaticResource myMenu}" ContextMenuOpening="TextImage_ContextMenuOpening" />
         </Grid>
-    </StackPanel>
+    </DockPanel>
 </Window>

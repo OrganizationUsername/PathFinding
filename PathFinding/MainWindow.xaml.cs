@@ -6,7 +6,6 @@ using System.Globalization;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -34,7 +33,7 @@ public partial class MainWindow
     private int _ticksPerSecond;
     private double rightClickX;
     private double rightClickY;
-    private List<Color> metroColors;
+    private readonly List<Color> metroColors;
 
     public MainWindow()
     {
@@ -59,11 +58,8 @@ public partial class MainWindow
         };
     }
 
-#pragma warning disable CS8632 // The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
-    private async void RenderTickAsync(object? sender, EventArgs e)
-#pragma warning restore CS8632 // The annotation for nullable reference types should only be used in code within a '#nullable' annotations context.
+    private async void RenderTickAsync(object sender, EventArgs e)
     {
-
         if (Keyboard.IsKeyDown(Key.D1) && Keyboard.FocusedElement is not TextBox)
         {
             MessageBox.Show("Got 1");
@@ -95,7 +91,11 @@ public partial class MainWindow
                 var tile = Vm.State.TileGrid[x, y];
                 if ((tile.X + 1) * TileSize - LeftX < 0 || tile.X * TileSize - LeftX > Vm.PixelWidth || (tile.Y + 1) * TileSize - TopY < 0 || tile.Y * TileSize - TopY > Vm.PixelHeight) continue;
                 Color color;
-                if (tile.IsPassable) { color = tile.ChunkId == -1 ? Colors.LightBlue : metroColors[tile.ChunkId % metroColors.Count]; }
+                if (tile.IsPassable)
+                {
+                    color = tile.ChunkId == -1 ? Colors.LightBlue : metroColors[tile.ChunkId % metroColors.Count];
+                    if (Vm.EntitiesToHighlight.Contains(tile)) { color = Colors.Peru; }
+                }
                 else { color = Colors.DarkGray; }
 
                 Wb.FillRectangle(tile.X * TileSize + 1 - LeftX, tile.Y * TileSize + 1 - TopY, tile.X * TileSize + TileSize - 1 - LeftX, tile.Y * TileSize + TileSize - 1 - TopY, color);
@@ -106,8 +106,16 @@ public partial class MainWindow
                         Wb.FillEllipseCentered(tile.X * TileSize + TileSize / 2 - LeftX, tile.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, Colors.White); continue;
                     case TileRole.Destination:
                         Wb.FillEllipseCentered(tile.X * TileSize + TileSize / 2 - LeftX, tile.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, Colors.Black); continue;
+                    case TileRole.Nothing:
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException();
                 }
 
+                foreach (var tile1 in Vm.EntitiesToHighlight)
+                {
+
+                }
                 if (tile.IsPartOfSolution) { Wb.FillEllipseCentered(tile.X * TileSize + (TileSize / 2 - LeftX), tile.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, Colors.White); }
             }
         }
@@ -170,10 +178,10 @@ public partial class MainWindow
             ClearText();
             DrawCostText(_cellBackup);
             //capture mouse moving to the left to increase x
-            Vm.Left -= (int)(thisPosition.X - _point.Value.X);
+            Vm.Left -= (int)(thisPosition.X - _point!.Value.X);
             Vm.Left = Math.Max(0, Vm.Left);
             //capture mouse moving down to increase y
-            Vm.Top -= (int)(thisPosition.Y - _point.Value.Y);
+            Vm.Top -= (int)(thisPosition.Y - _point!.Value.Y);
             Vm.Top = Math.Max(0, Vm.Top);
         }
 
@@ -210,14 +218,9 @@ public partial class MainWindow
     private void TextImage_OnMouseWheel(object sender, MouseWheelEventArgs e)
     {
         //ToDo: zoom in on the highlighted square?
-        if (e.Delta > 0) //zoom out
-        {
-            Vm.TileSize = Math.Min(Vm.TileSize + 1, 50);
-        }
-        else //zoom in
-        {
-            Vm.TileSize = Math.Max(Vm.TileSize - 1, 3);
-        }
+        if (e.Delta > 0) /*zoom out*/ { Vm.TileSize = Math.Min(Vm.TileSize + 1, 50); }
+        else /*zoom in*/ { Vm.TileSize = Math.Max(Vm.TileSize - 1, 3); }
+
         _clicked = false;
         Vm.LeftButtonClick = _clicked;
         ClearText();
