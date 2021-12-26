@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.32014.148
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PathFinding", "PathFinding\PathFinding.csproj", "{3C0A942B-ECE2-41BD-8C08-A5E43BA0BC33}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PathFinding.Core", "PathFinding.Core\PathFinding.Core.csproj", "{C88C24AD-1033-4961-881C-92E06A4036F1}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{76F9DE96-AA9A-419E-99E7-358342162431}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3C0A942B-ECE2-41BD-8C08-A5E43BA0BC33}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3C0A942B-ECE2-41BD-8C08-A5E43BA0BC33}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3C0A942B-ECE2-41BD-8C08-A5E43BA0BC33}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3C0A942B-ECE2-41BD-8C08-A5E43BA0BC33}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C88C24AD-1033-4961-881C-92E06A4036F1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C88C24AD-1033-4961-881C-92E06A4036F1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C88C24AD-1033-4961-881C-92E06A4036F1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C88C24AD-1033-4961-881C-92E06A4036F1}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {175E9C0F-6C25-4B38-8688-28581977A82D}
+	EndGlobalSection
+EndGlobal
