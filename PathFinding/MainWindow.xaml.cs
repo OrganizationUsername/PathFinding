@@ -34,6 +34,8 @@ public partial class MainWindow
     private double rightClickX;
     private double rightClickY;
     private readonly List<Color> metroColors;
+    private readonly Dictionary<Key, int> NumberKeys;
+
 
     public MainWindow()
     {
@@ -54,15 +56,17 @@ public partial class MainWindow
             (Color)ColorConverter.ConvertFromString("#FCCC0A")!,
             (Color)ColorConverter.ConvertFromString("#EE352E")!,
             (Color)ColorConverter.ConvertFromString("#00933C")!,
-            (Color)ColorConverter.ConvertFromString("#B933AD")!
+            (Color)ColorConverter.ConvertFromString("#B933AD")!,
         };
+
+        NumberKeys = new() { { Key.D1, 1 }, { Key.D2, 2 }, { Key.D3, 3 }, { Key.D4, 4 }, { Key.D5, 5 }, { Key.NumPad1, 1 }, { Key.NumPad2, 2 }, { Key.NumPad3, 3 }, { Key.NumPad4, 4 }, { Key.NumPad5, 5 } };
     }
 
     private async void RenderTickAsync(object sender, EventArgs e)
     {
-        if (Keyboard.IsKeyDown(Key.D1) && Keyboard.FocusedElement is not TextBox)
+        foreach (var kvp in NumberKeys)
         {
-            MessageBox.Show("Got 1");
+            if (Keyboard.IsKeyDown(kvp.Key)) { Vm.CurrentPlayer = kvp.Value; }
         }
 
         DateTime dt = DateTime.Now;
@@ -100,10 +104,12 @@ public partial class MainWindow
 
                 Wb.FillRectangle(tile.X * TileSize + 1 - LeftX, tile.Y * TileSize + 1 - TopY, tile.X * TileSize + TileSize - 1 - LeftX, tile.Y * TileSize + TileSize - 1 - TopY, color);
 
+                if (tile.IsPartOfSolution) { Wb.FillEllipseCentered(tile.X * TileSize + (TileSize / 2 - LeftX), tile.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, Colors.White); }
+
                 switch (tile.TileRole)
                 {
                     case TileRole.Source:
-                        Wb.FillEllipseCentered(tile.X * TileSize + TileSize / 2 - LeftX, tile.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, Colors.White); continue;
+                        Wb.FillEllipseCentered(tile.X * TileSize + TileSize / 2 - LeftX, tile.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, Colors.Green); continue;
                     case TileRole.Destination:
                         Wb.FillEllipseCentered(tile.X * TileSize + TileSize / 2 - LeftX, tile.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, Colors.Black); continue;
                     case TileRole.Nothing:
@@ -111,12 +117,6 @@ public partial class MainWindow
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
-
-                foreach (var tile1 in Vm.EntitiesToHighlight)
-                {
-
-                }
-                if (tile.IsPartOfSolution) { Wb.FillEllipseCentered(tile.X * TileSize + (TileSize / 2 - LeftX), tile.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, Colors.White); }
             }
         }
 
@@ -143,17 +143,17 @@ public partial class MainWindow
         if (!Vm.ShowNumbers) return;
         if (cellCosts is null) return;
         var visual = new DrawingVisual();
-        using (DrawingContext drawingContext = visual.RenderOpen())
+        using (var drawingContext = visual.RenderOpen())
         {
             drawingContext.DrawImage(Wb, new(0, 0, Vm.PixelWidth, Vm.PixelHeight));
-            var _textSize = 12;
+            const int textSize = 12;
             foreach (var tile in cellCosts)
             {
                 if (tile.FCost > int.MaxValue / 3) continue;
                 var x = tile.X * TileSize - LeftX;
                 var y = tile.Y * TileSize - TopY;
                 if (x < 0 || x > Width || y < 0 || y > Height) continue;
-                var segoe12 = new FormattedText(tile.FCost.ToString(), CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new("Segoe UI"), _textSize / 2.0, Brushes.Black, new(), 96);
+                var segoe12 = new FormattedText(tile.FCost.ToString(), CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new("Segoe UI"), textSize / 2.0, Brushes.Black, new(), 96);
                 drawingContext.DrawText(segoe12, new(x, y));
             }
         }
@@ -190,15 +190,9 @@ public partial class MainWindow
         Vm.LeftButtonClick = _clicked;
     }
 
-    private async void FindPath(object sender, RoutedEventArgs e)
-    {
-        await FindPathAsync();
-    }
+    private async void FindPath(object sender, RoutedEventArgs e) => await FindPathAsync();
 
-    private async Task FindPathAsync()
-    {
-        await Vm.PathFinding();
-    }
+    private async Task FindPathAsync() => await Vm.PathFinding();
 
     private void UIElement_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {

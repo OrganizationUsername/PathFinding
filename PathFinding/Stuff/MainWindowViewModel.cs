@@ -49,12 +49,15 @@ public class MainWindowViewModel : ObservableObject
     public IStatePersistence _sp;
     public DateTime LastRequestedPathFind { get; set; }
     private int _cellsScored;
+    private int _currentPlayer = 1;
+    public int CurrentPlayer { get => _currentPlayer; set => SetProperty(ref _currentPlayer, value); }
+
     public RelayCommand ResetCommand { get; set; }
 
     public MainWindowViewModel(/*IStatePersistence statePersistence*/)
     {
-        PixelWidth = 480;
-        PixelHeight = 480;
+        PixelWidth = 600;
+        PixelHeight = 600;
         TileWidth = 20;
         TileHeight = 20;
         var dpi = 96;
