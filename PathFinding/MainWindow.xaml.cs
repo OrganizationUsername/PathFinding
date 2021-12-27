@@ -60,6 +60,7 @@ public partial class MainWindow
         };
 
         NumberKeys = new() { { Key.D1, 1 }, { Key.D2, 2 }, { Key.D3, 3 }, { Key.D4, 4 }, { Key.D5, 5 }, { Key.NumPad1, 1 }, { Key.NumPad2, 2 }, { Key.NumPad3, 3 }, { Key.NumPad4, 4 }, { Key.NumPad5, 5 } };
+
     }
 
     private async void RenderTickAsync(object sender, EventArgs e)

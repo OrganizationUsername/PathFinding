@@ -343,6 +343,12 @@ public class MainWindowViewModel : ObservableObject
         if (tile is null) return;
         tile.IsPassable = !tile.IsPassable;
         if (!tile.IsPassable) { tile.TileRole = TileRole.Nothing; }
+
+        foreach (var kvp in PlayerDictionary)
+        {
+            if (kvp.Value.Destination == tile) PlayerDictionary[kvp.Key] = (kvp.Value.Source, null);
+            if (kvp.Value.Source == tile) PlayerDictionary[kvp.Key] = (null, kvp.Value.Source);
+        }
         AlreadyClicked.Add(tile);
         EntitiesToHighlight.Clear();
         EntitiesToHighlight.Add(tile);
