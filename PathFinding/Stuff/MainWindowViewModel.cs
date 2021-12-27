@@ -125,47 +125,63 @@ public class MainWindowViewModel : ObservableObject
 
     public async Task PathFinding()
     {
-        var sw = new Stopwatch();
-        sw.Start();
-        //Got all of the cells with H-Score.
-        if (LeftButtonClick) return;
-        if (!GetCellsOfInterest(out var destCell, out var sourceCell)) return;
-        var thisDate = DateTime.Now;
-        LastRequestedPathFind = thisDate;
 
-        var cells = new Cell[State.X, State.Y];
+        foreach (var tile in State.TileGrid) { tile.IsPartOfSolution = false; }
 
-        foreach (var t in State.Tiles)
+        foreach (var kvp in PlayerDictionary.Where(x => x.Value.Destination is not null && x.Value.Source is not null))
         {
-            var hScore = Math.Abs(t.X - destCell.X) + Math.Abs(t.Y - destCell.Y);
-            var cell = new Cell() { HScore = hScore * 10, GScore = int.MaxValue / 2, X = t.X, Y = t.Y, Id = t.Id, Passable = t.IsPassable };
-            if (t.TileRole == TileRole.Destination) { destCell = cell; }
-            if (t.TileRole == TileRole.Source) { sourceCell = cell; }
-            cells[t.X, t.Y] = cell;
-        }
+            var sw = new Stopwatch();
+            sw.Start();
+            //Got all of the cells with H-Score.
+            if (LeftButtonClick) return;
+            if (!GetCellsOfInterest(out var destCell, out var sourceCell, kvp.Key)) return;
+            var thisDate = DateTime.Now;
+            LastRequestedPathFind = thisDate;
+            Trace.WriteLine(thisDate);
+            var cells = new Cell[State.X, State.Y];
 
-        //Not really useful at the moment.
-        //await Chunking(cells, thisDate);
+            foreach (var t in State.Tiles)
+            {
+                var hScore = Math.Abs(t.X - destCell.X) + Math.Abs(t.Y - destCell.Y);
+                var cell = new Cell()
+                {
+                    HScore = hScore * 10,
+                    GScore = int.MaxValue / 2,
+                    X = t.X,
+                    Y = t.Y,
+                    Id = t.Id,
+                    Passable = t.IsPassable
+                };
+                if (t == kvp.Value.Destination) { destCell = cell; }
+                if (t == kvp.Value.Source) { sourceCell = cell; }
+                cells[t.X, t.Y] = cell;
+            }
 
-        Trace.WriteLine($"{sw.ElapsedMilliseconds} ms to set up solver."); //~10
-        var solutionIds = await Solver.SolveAsync(cells, sourceCell, destCell, null, thisDate, AllowDiagonal);
-        if (solutionIds.SolutionCells is null || !solutionIds.SolutionCells.Any()) return;
-        Ms = solutionIds.TimeToSolve;
-        Trace.WriteLine($"{Ms}ms to solve.");
-        if (solutionIds.thisDate != LastRequestedPathFind) return;
-        AnswerCells = solutionIds.AllCells;
-        foreach (var cell in solutionIds.SolutionCells)
-        {
-            var theCell = State.TileGrid[cell.X, cell.Y];
-            theCell.IsPartOfSolution = true;
+            //Not really useful at the moment.
+            //await Chunking(cells, thisDate);
+            Trace.WriteLine($"Player number: { kvp.Key}. ({sourceCell.X},{sourceCell.Y}) to ({destCell.X},{destCell.Y})");
+            Trace.WriteLine($"{sw.ElapsedMilliseconds} ms to set up solver."); //~10
+            var solutionIds = await Solver.SolveAsync(cells, sourceCell, destCell, null, thisDate, AllowDiagonal);
+            if (solutionIds.SolutionCells is null || !solutionIds.SolutionCells.Any()) return;
+            Ms = solutionIds.TimeToSolve;
+            Trace.WriteLine($"{Ms}ms to solve ({sourceCell.X},{sourceCell.Y}) to ({destCell.X},{destCell.Y}).");
+            if (solutionIds.thisDate != LastRequestedPathFind) return;
+            AnswerCells = solutionIds.AllCells;
+            foreach (var cell in solutionIds.SolutionCells)
+            {
+                var theTile = State.TileGrid[cell.X, cell.Y];
+                theTile.IsPartOfSolution = true;
+                Trace.WriteLine($"{theTile.X},{theTile.Y}");
+            }
+
+            var notableCount = 0;
+            foreach (var cell in solutionIds.AllCells)
+            {
+                if (cell.FCost > int.MaxValue / 3) continue;
+                notableCount++;
+            }
+            CellsScored = notableCount;
         }
-        var notableCount = 0;
-        foreach (var cell in solutionIds.AllCells)
-        {
-            if (cell.FCost > int.MaxValue / 3) continue;
-            notableCount++;
-        }
-        CellsScored = notableCount;
     }
 
     private async Task Chunking(Cell[,] cells, DateTime thisDate)
@@ -292,13 +308,13 @@ public class MainWindowViewModel : ObservableObject
         }
     }
 
-    private bool GetCellsOfInterest(out Cell destCell, out Cell sourceCell)
+    private bool GetCellsOfInterest(out Cell destCell, out Cell sourceCell, int playerNumber)
     {
         //var sw = new Stopwatch();
         //sw.Start();
         destCell = null;
         sourceCell = null;
-        var cells = GetCellsFromTiles();
+        var cells = GetCellsFromTiles(playerNumber);
         if (cells.sourceCell is null) return false;
         destCell = cells.destinationCell;
         sourceCell = cells.sourceCell;
@@ -306,31 +322,29 @@ public class MainWindowViewModel : ObservableObject
         return true;
     }
 
-    public (Cell sourceCell, Cell destinationCell) GetCellsFromTiles()
+    public (Cell sourceCell, Cell destinationCell) GetCellsFromTiles(int playerNumber)
     {
         //var sw = new Stopwatch();
         //sw.Start();
-        //Reset all tiles visually.
-        foreach (var stateTile in State.Tiles) { stateTile.IsPartOfSolution = false; }
-        var source = State.Tiles.FirstOrDefault(x => x.TileRole == TileRole.Source);
-        if (source is null) return (null, null);
-        var destinationTile = State.Tiles.FirstOrDefault(x => x.TileRole == TileRole.Destination);
-        if (destinationTile is null) return (null, null);
-        var cells = GetTileStateCells(destinationTile, State.Tiles);
+
+        if (PlayerDictionary[playerNumber].Destination is null || PlayerDictionary[playerNumber].Source is null) return (null, null);
+        var cells = GetTileStateCells(PlayerDictionary[playerNumber].Destination, PlayerDictionary[playerNumber].Source, State.Tiles);
         //Trace.WriteLine($"{sw.ElapsedMilliseconds} ms to get Cells of interest 2"); //4
         return cells;
     }
 
-    private (Cell sourceCell, Cell destinationCell) GetTileStateCells(Tile destination, IList<Tile> tiles)
+    private (Cell sourceCell, Cell destinationCell) GetTileStateCells(Tile destination, Tile source, IList<Tile> tiles)
     {
+        Trace.WriteLine($"Getting ({source.X},{source.Y}) to ({destination.X},{destination.Y}).");
+
         Cell destinationCell = null;
         Cell sourceCell = null;
         for (var i = 0; i < tiles.Count; i++)
         {
             var tile = tiles[i];
             if (tile.TileRole == TileRole.Nothing) continue;
-            if (tile.TileRole == TileRole.Destination) { destinationCell = new() { Id = tile.Id, HScore = Math.Abs(tile.X - destination.X) + Math.Abs(tile.Y - destination.Y), X = tile.X, Y = tile.Y, Passable = tile.IsPassable }; }
-            if (tile.TileRole == TileRole.Source) { sourceCell = new() { Id = tile.Id, HScore = Math.Abs(tile.X - destination.X) + Math.Abs(tile.Y - destination.Y), X = tile.X, Y = tile.Y, Passable = tile.IsPassable }; }
+            if (tile == destination) { destinationCell = new() { Id = tile.Id, HScore = Math.Abs(tile.X - destination.X) + Math.Abs(tile.Y - destination.Y), X = tile.X, Y = tile.Y, Passable = tile.IsPassable }; }
+            if (tile == source) { sourceCell = new() { Id = tile.Id, HScore = Math.Abs(tile.X - destination.X) + Math.Abs(tile.Y - destination.Y), X = tile.X, Y = tile.Y, Passable = tile.IsPassable }; }
             if (destinationCell is not null && sourceCell is not null) return (sourceCell, destinationCell);
         }
         return (null, null);
@@ -381,13 +395,8 @@ public class MainWindowViewModel : ObservableObject
         if (tile.TileRole == TileRole.Nothing && tile.IsPassable)
         {
             if (PlayerDictionary[CurrentPlayer].Source is null) { PlayerDictionary[CurrentPlayer] = (tile, PlayerDictionary[CurrentPlayer].Destination); tile.TileRole = TileRole.Source; return; }
-
             if (PlayerDictionary[CurrentPlayer].Destination is null) { PlayerDictionary[CurrentPlayer] = (PlayerDictionary[CurrentPlayer].Source, tile); tile.TileRole = TileRole.Destination; return; }
         }
-
-        //if (tile.TileRole == TileRole.Destination || tile.TileRole == TileRole.Source || !tile.IsPassable) { tile.TileRole = TileRole.Nothing; /*Trace.WriteLine($"Time to right-click: {sw.ElapsedMilliseconds} ms");*/ return; }
-        //if (tile.TileRole == TileRole.Nothing && tile.IsPassable && State.Tiles.All(t => t.TileRole != TileRole.Source)) { tile.TileRole = TileRole.Source; /*Trace.WriteLine($"Time to right-click: {sw.ElapsedMilliseconds} ms");*/  return; }
-        //if (tile.TileRole == TileRole.Nothing && tile.IsPassable && State.Tiles.All(t => t.TileRole != TileRole.Destination)) tile.TileRole = TileRole.Destination; /*Trace.WriteLine($"Time to right-click: {sw.ElapsedMilliseconds} ms");*/
     }
 
     public async Task Tick(Point? point, bool clicked)
