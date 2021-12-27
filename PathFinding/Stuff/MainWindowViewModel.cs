@@ -58,7 +58,10 @@ public class MainWindowViewModel : ObservableObject
 
     public MainWindowViewModel(/*IStatePersistence statePersistence*/)
     {
-        PlayerCount = 5;
+        PlayerCount = 3;
+
+        for (int i = 1; i <= PlayerCount; i++) { PlayerDictionary.Add(i, (null, null)); }
+
         PixelWidth = 600;
         PixelHeight = 600;
         TileWidth = 20;
@@ -295,7 +298,7 @@ public class MainWindowViewModel : ObservableObject
         //sw.Start();
         destCell = null;
         sourceCell = null;
-        var cells = GetCellsFromTile();
+        var cells = GetCellsFromTiles();
         if (cells.sourceCell is null) return false;
         destCell = cells.destinationCell;
         sourceCell = cells.sourceCell;
@@ -303,7 +306,7 @@ public class MainWindowViewModel : ObservableObject
         return true;
     }
 
-    public (Cell sourceCell, Cell destinationCell) GetCellsFromTile()
+    public (Cell sourceCell, Cell destinationCell) GetCellsFromTiles()
     {
         //var sw = new Stopwatch();
         //sw.Start();
@@ -328,10 +331,9 @@ public class MainWindowViewModel : ObservableObject
             if (tile.TileRole == TileRole.Nothing) continue;
             if (tile.TileRole == TileRole.Destination) { destinationCell = new() { Id = tile.Id, HScore = Math.Abs(tile.X - destination.X) + Math.Abs(tile.Y - destination.Y), X = tile.X, Y = tile.Y, Passable = tile.IsPassable }; }
             if (tile.TileRole == TileRole.Source) { sourceCell = new() { Id = tile.Id, HScore = Math.Abs(tile.X - destination.X) + Math.Abs(tile.Y - destination.Y), X = tile.X, Y = tile.Y, Passable = tile.IsPassable }; }
-            if (destinationCell is not null && sourceCell is not null) break;
+            if (destinationCell is not null && sourceCell is not null) return (sourceCell, destinationCell);
         }
-        if (sourceCell is null || destinationCell is null) return (null, null);
-        return (sourceCell, destinationCell);
+        return (null, null);
     }
 
     public async void TryFlipElement(Point? point)
@@ -367,9 +369,19 @@ public class MainWindowViewModel : ObservableObject
         var tile = GetTileAtLocation(point);
         if (tile is null) return;
 
-        if (tile.TileRole == TileRole.Destination || tile.TileRole == TileRole.Source || !tile.IsPassable) { tile.TileRole = TileRole.Nothing; /*Trace.WriteLine($"Time to right-click: {sw.ElapsedMilliseconds} ms");*/ return; }
-        if (tile.TileRole == TileRole.Nothing && tile.IsPassable && State.Tiles.All(t => t.TileRole != TileRole.Source)) { tile.TileRole = TileRole.Source; /*Trace.WriteLine($"Time to right-click: {sw.ElapsedMilliseconds} ms");*/  return; }
-        if (tile.TileRole == TileRole.Nothing && tile.IsPassable && State.Tiles.All(t => t.TileRole != TileRole.Destination)) tile.TileRole = TileRole.Destination; /*Trace.WriteLine($"Time to right-click: {sw.ElapsedMilliseconds} ms");*/
+        if (tile == PlayerDictionary[CurrentPlayer].Source) { PlayerDictionary[CurrentPlayer] = (null, PlayerDictionary[CurrentPlayer].Destination); return; }
+        if (tile == PlayerDictionary[CurrentPlayer].Destination) { PlayerDictionary[CurrentPlayer] = (PlayerDictionary[CurrentPlayer].Source, null); return; }
+
+        if (tile.TileRole == TileRole.Nothing && tile.IsPassable)
+        {
+            if (PlayerDictionary[CurrentPlayer].Source is null) { PlayerDictionary[CurrentPlayer] = (tile, PlayerDictionary[CurrentPlayer].Destination); tile.TileRole = TileRole.Source; return; }
+
+            if (PlayerDictionary[CurrentPlayer].Destination is null) { PlayerDictionary[CurrentPlayer] = (PlayerDictionary[CurrentPlayer].Source, tile); tile.TileRole = TileRole.Destination; return; }
+        }
+
+        //if (tile.TileRole == TileRole.Destination || tile.TileRole == TileRole.Source || !tile.IsPassable) { tile.TileRole = TileRole.Nothing; /*Trace.WriteLine($"Time to right-click: {sw.ElapsedMilliseconds} ms");*/ return; }
+        //if (tile.TileRole == TileRole.Nothing && tile.IsPassable && State.Tiles.All(t => t.TileRole != TileRole.Source)) { tile.TileRole = TileRole.Source; /*Trace.WriteLine($"Time to right-click: {sw.ElapsedMilliseconds} ms");*/  return; }
+        //if (tile.TileRole == TileRole.Nothing && tile.IsPassable && State.Tiles.All(t => t.TileRole != TileRole.Destination)) tile.TileRole = TileRole.Destination; /*Trace.WriteLine($"Time to right-click: {sw.ElapsedMilliseconds} ms");*/
     }
 
     public async Task Tick(Point? point, bool clicked)
