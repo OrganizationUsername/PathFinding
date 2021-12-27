@@ -51,11 +51,14 @@ public class MainWindowViewModel : ObservableObject
     private int _cellsScored;
     private int _currentPlayer = 1;
     public int CurrentPlayer { get => _currentPlayer; set => SetProperty(ref _currentPlayer, value); }
+    public Dictionary<int, (Tile Source, Tile Destination)> PlayerDictionary = new();
+    public int PlayerCount { get; set; }
 
     public RelayCommand ResetCommand { get; set; }
 
     public MainWindowViewModel(/*IStatePersistence statePersistence*/)
     {
+        PlayerCount = 5;
         PixelWidth = 600;
         PixelHeight = 600;
         TileWidth = 20;

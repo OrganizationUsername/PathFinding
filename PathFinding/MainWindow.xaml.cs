@@ -64,12 +64,9 @@ public partial class MainWindow
 
     private async void RenderTickAsync(object sender, EventArgs e)
     {
-        foreach (var kvp in NumberKeys)
-        {
-            if (Keyboard.IsKeyDown(kvp.Key)) { Vm.CurrentPlayer = kvp.Value; }
-        }
+        if (Keyboard.FocusedElement is not TextBox) { foreach (var kvp in NumberKeys) { if (Keyboard.IsKeyDown(kvp.Key)) { Vm.CurrentPlayer = Math.Min(kvp.Value, Vm.PlayerCount); } } }
 
-        DateTime dt = DateTime.Now;
+        var dt = DateTime.Now;
         if (dt - _dt > TimeSpan.FromMilliseconds(1000))
         {
             Vm.Fps = _ticksPerSecond;
