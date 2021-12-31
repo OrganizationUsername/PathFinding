@@ -60,7 +60,8 @@ public partial class MainWindow
         };
 
         NumberKeys = new() { { Key.D1, 1 }, { Key.D2, 2 }, { Key.D3, 3 }, { Key.D4, 4 }, { Key.D5, 5 }, { Key.NumPad1, 1 }, { Key.NumPad2, 2 }, { Key.NumPad3, 3 }, { Key.NumPad4, 4 }, { Key.NumPad5, 5 } };
-
+        //TODO: I should get WASD to move the map around.
+        //TODO: What if I got "R" to get a Rectangle you could throw in? "C" for a circle. 
     }
 
     private async void RenderTickAsync(object sender, EventArgs e)
@@ -106,14 +107,10 @@ public partial class MainWindow
 
                 switch (tile.TileRole)
                 {
-                    case TileRole.Source:
-                        Wb.FillEllipseCentered(tile.X * TileSize + TileSize / 2 - LeftX, tile.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, Colors.Green); continue;
-                    case TileRole.Destination:
-                        Wb.FillEllipseCentered(tile.X * TileSize + TileSize / 2 - LeftX, tile.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, Colors.Black); continue;
-                    case TileRole.Nothing:
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException();
+                    case TileRole.Source: Wb.FillEllipseCentered(tile.X * TileSize + TileSize / 2 - LeftX, tile.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, Colors.Green); continue;
+                    case TileRole.Destination: Wb.FillEllipseCentered(tile.X * TileSize + TileSize / 2 - LeftX, tile.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, Colors.Black); continue;
+                    case TileRole.Nothing: break;
+                    default: throw new ArgumentOutOfRangeException();
                 }
             }
         }

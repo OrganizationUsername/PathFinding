@@ -86,6 +86,8 @@ public class MainWindowViewModel : ObservableObject
             TileSize = Math.Max(Math.Min(PixelWidth / tileWidth, PixelHeight / tileHeight), 3);
             State = new(TileWidth, TileHeight, TileSize, _sp);
             AnswerCells = null;
+            PlayerDictionary.Clear();
+            for (int i = 1; i <= PlayerCount; i++) { PlayerDictionary.Add(i, (null, null)); }
         }
     }
 
@@ -125,16 +127,22 @@ public class MainWindowViewModel : ObservableObject
 
     public async Task PathFinding()
     {
-
         foreach (var tile in State.TileGrid) { tile.IsPartOfSolution = false; }
 
-        foreach (var kvp in PlayerDictionary.Where(x => x.Value.Destination is not null && x.Value.Source is not null))
+        var keys = PlayerDictionary.Keys.ToArray();
+
+        for (var index = 0; index < keys.Length; index++)
         {
+            var key = keys[index];
+            var (source, destination) = PlayerDictionary[key];
+
+            if (destination is null || source is null) { continue; }
+
             var sw = new Stopwatch();
             sw.Start();
             //Got all of the cells with H-Score.
-            if (LeftButtonClick) return;
-            if (!GetCellsOfInterest(out var destCell, out var sourceCell, kvp.Key)) return;
+            //if (LeftButtonClick) continue;
+            if (!GetCellsOfInterest(out var destCell, out var sourceCell, key)) return;
             var thisDate = DateTime.Now;
             LastRequestedPathFind = thisDate;
             Trace.WriteLine(thisDate);
@@ -152,14 +160,15 @@ public class MainWindowViewModel : ObservableObject
                     Id = t.Id,
                     Passable = t.IsPassable
                 };
-                if (t == kvp.Value.Destination) { destCell = cell; }
-                if (t == kvp.Value.Source) { sourceCell = cell; }
+                if (t == destination) { destCell = cell; }
+                if (t == source) { sourceCell = cell; }
+
                 cells[t.X, t.Y] = cell;
             }
 
             //Not really useful at the moment.
             //await Chunking(cells, thisDate);
-            Trace.WriteLine($"Player number: { kvp.Key}. ({sourceCell.X},{sourceCell.Y}) to ({destCell.X},{destCell.Y})");
+            Trace.WriteLine($"Player number: { key}. ({sourceCell.X},{sourceCell.Y}) to ({destCell.X},{destCell.Y})");
             Trace.WriteLine($"{sw.ElapsedMilliseconds} ms to set up solver."); //~10
             var solutionIds = await Solver.SolveAsync(cells, sourceCell, destCell, null, thisDate, AllowDiagonal);
             if (solutionIds.SolutionCells is null || !solutionIds.SolutionCells.Any()) return;
@@ -356,16 +365,39 @@ public class MainWindowViewModel : ObservableObject
         var tile = GetTileAtLocation(point);
         if (tile is null) return;
         tile.IsPassable = !tile.IsPassable;
-        if (!tile.IsPassable) { tile.TileRole = TileRole.Nothing; }
-
-        foreach (var kvp in PlayerDictionary)
+        if (!tile.IsPassable)
         {
-            if (kvp.Value.Destination == tile) PlayerDictionary[kvp.Key] = (kvp.Value.Source, null);
-            if (kvp.Value.Source == tile) PlayerDictionary[kvp.Key] = (null, kvp.Value.Source);
+            tile.TileRole = TileRole.Nothing;
+            foreach (var kvp in PlayerDictionary)
+            {
+                if (kvp.Value.Destination == tile) PlayerDictionary[kvp.Key] = (kvp.Value.Source, null);
+                if (kvp.Value.Source == tile) PlayerDictionary[kvp.Key] = (null, kvp.Value.Source);
+            }
         }
         AlreadyClicked.Add(tile);
         EntitiesToHighlight.Clear();
         EntitiesToHighlight.Add(tile);
+        if (AlwaysPath) await PathFinding();
+        SetupMapString();
+    }
+
+    private async Task GetDownClicks(Point? point)
+    {
+        //TODO: Too much duplicated code with TryFlipElement
+        var tile = GetTileAtLocation(point);
+        if (tile is null) return;
+        if (AlreadyClicked.Any(t => t.Id == tile.Id)) return;
+        tile.IsPassable = !tile.IsPassable;
+        if (!tile.IsPassable)
+        {
+            tile.TileRole = TileRole.Nothing;
+            foreach (var kvp in PlayerDictionary)
+            {
+                if (kvp.Value.Destination == tile) PlayerDictionary[kvp.Key] = (kvp.Value.Source, null);
+                if (kvp.Value.Source == tile) PlayerDictionary[kvp.Key] = (null, kvp.Value.Source);
+            }
+        }
+        AlreadyClicked.Add(tile);
         if (AlwaysPath) await PathFinding();
         SetupMapString();
     }
@@ -389,8 +421,11 @@ public class MainWindowViewModel : ObservableObject
         var tile = GetTileAtLocation(point);
         if (tile is null) return;
 
-        if (tile == PlayerDictionary[CurrentPlayer].Source) { PlayerDictionary[CurrentPlayer] = (null, PlayerDictionary[CurrentPlayer].Destination); return; }
-        if (tile == PlayerDictionary[CurrentPlayer].Destination) { PlayerDictionary[CurrentPlayer] = (PlayerDictionary[CurrentPlayer].Source, null); return; }
+        foreach (var kvp in PlayerDictionary)
+        {
+            if (kvp.Value.Destination == tile) { PlayerDictionary[kvp.Key] = (kvp.Value.Source, null); tile.TileRole = TileRole.Nothing; return; }
+            if (kvp.Value.Source == tile) { PlayerDictionary[kvp.Key] = (null, kvp.Value.Source); tile.TileRole = TileRole.Nothing; return; }
+        }
 
         if (tile.TileRole == TileRole.Nothing && tile.IsPassable)
         {
@@ -404,17 +439,6 @@ public class MainWindowViewModel : ObservableObject
         GetHoverElements(point);
         if (clicked) { await GetDownClicks(point); }
         else { AlreadyClicked.Clear(); }
-    }
-
-    private async Task GetDownClicks(Point? point)
-    {
-        var tile = GetTileAtLocation(point);
-        if (tile is null) return;
-        if (AlreadyClicked.Any(t => t.Id == tile.Id)) return;
-        tile.IsPassable = !tile.IsPassable;
-        AlreadyClicked.Add(tile);
-        if (AlwaysPath) await PathFinding();
-        SetupMapString();
     }
 }
 
@@ -496,10 +520,7 @@ public class StatePersistence : IStatePersistence
         sb.Append(Y + ";");
         for (var x = 0; x < X; x++)
         {
-            for (var y = 0; y < Y; y++)
-            {
-                sb.Append(TileGrid[x, y].IsPassable ? "0" : "1");
-            }
+            for (var y = 0; y < Y; y++) { sb.Append(TileGrid[x, y].IsPassable ? "0" : "1"); }
             sb.Append(";");
         }
 

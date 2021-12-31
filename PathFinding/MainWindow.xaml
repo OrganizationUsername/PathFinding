@@ -84,7 +84,8 @@
                MouseRightButtonDown="UIElement_OnMouseRightButtonDown"
                MouseLeftButtonUp="UIElement_OnMouseLeftButtonUp"
                MouseWheel="TextImage_OnMouseWheel" 
-               ContextMenu="{StaticResource myMenu}" ContextMenuOpening="TextImage_ContextMenuOpening" />
+               />
+            <!--ContextMenu="{StaticResource myMenu}" ContextMenuOpening="TextImage_ContextMenuOpening"-->
             <Image Source="{Binding Wb}"
                Height="{Binding PixelHeight}" Width="{Binding PixelWidth}" Stretch="None" 
                Panel.ZIndex="2"
@@ -94,7 +95,8 @@
                MouseRightButtonDown="UIElement_OnMouseRightButtonDown"
                MouseLeftButtonUp="UIElement_OnMouseLeftButtonUp"
                MouseWheel="TextImage_OnMouseWheel"
-               ContextMenu="{StaticResource myMenu}" ContextMenuOpening="TextImage_ContextMenuOpening" />
+                />
+            <!--ContextMenu="{StaticResource myMenu}" ContextMenuOpening="TextImage_ContextMenuOpening"-->
         </Grid>
     </DockPanel>
 </Window>
