@@ -74,7 +74,7 @@ public partial class MainWindow
         if (Keyboard.FocusedElement is not TextBox) { foreach (var kvp in _movementKeys) { if (Keyboard.IsKeyDown(kvp.Key)) { Vm.Left += 10 * kvp.Value.X; Vm.Top += 10 * kvp.Value.Y; DrawCostText(_cellBackup); } } }
         if (Keyboard.FocusedElement is not TextBox) { if (Keyboard.IsKeyDown(Key.C) && !LastPressedKeys.Contains(Key.C)) { Vm.ClickMode = 1 - Vm.ClickMode; LastPressedKeys.Add(Key.C); } }
         if (!Keyboard.IsKeyDown(Key.C) && LastPressedKeys.Contains(Key.C)) LastPressedKeys.Remove(Key.C);
-        
+
         Vm.Left = Math.Max(0, Vm.Left); Vm.Top = Math.Max(0, Vm.Top);
 
         var dt = DateTime.Now;
@@ -166,10 +166,7 @@ public partial class MainWindow
         TextImage.Source = new DrawingImage(visual.Drawing);
     }
 
-    private void ClearText()
-    {
-        TextImage.Source = new DrawingImage(new DrawingVisual().Drawing);
-    }
+    private void ClearText() => TextImage.Source = new DrawingImage(new DrawingVisual().Drawing);
 
     private void Image_MouseLeave(object sender, MouseEventArgs e) => _point = null;
 
@@ -205,11 +202,7 @@ public partial class MainWindow
         await Vm.TryFlipElement(point);
     }
 
-    private void UIElement_OnMouseRightButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        var point = e.GetPosition(sender as Image);
-        Vm.FlipElementSourceDestination(point);
-    }
+    private void UIElement_OnMouseRightButtonDown(object sender, MouseButtonEventArgs e) => Vm.FlipElementSourceDestination(e.GetPosition(sender as Image));
 
     private void TextImage_OnMouseWheel(object sender, MouseWheelEventArgs e)
     {
@@ -222,21 +215,14 @@ public partial class MainWindow
         DrawCostText(_cellBackup);
     }
 
-    private void UIElement_OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-    {
-        _clicked = false;
-        Vm.LeftButtonClick = _clicked;
-    }
+    private void UIElement_OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e) => Vm.LeftButtonClick = _clicked = false;
 
     private void LoadMapString(object sender, RoutedEventArgs e) => Vm.UploadMapString(Vm.TileString);
 
     [UsedImplicitly]
-    private void TextImage_ContextMenuOpening(object sender, ContextMenuEventArgs e)
-    {
-        _rightClickX = e.CursorLeft;
-        _rightClickY = e.CursorTop;
-        //MessageBox.Show($"{e.CursorLeft},{e.CursorTop}");
-    }
+    private void TextImage_ContextMenuOpening(object sender, ContextMenuEventArgs e) => (_rightClickX, _rightClickY) = (e.CursorLeft, e.CursorTop); /*MessageBox.Show($"{e.CursorLeft},{e.CursorTop}");*/
+    /* AdmSnyder is great: MessageBox.Show($"{(_rightClickX, _rightClickY) = (e.CursorLeft, e.CursorTop)}"); */
+
 
     private void MenuItem_Click(object sender, RoutedEventArgs e)
     {
