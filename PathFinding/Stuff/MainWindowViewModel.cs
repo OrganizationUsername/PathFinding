@@ -29,7 +29,9 @@ public class MainWindowViewModel : ObservableObject
     private string _tileString;
     private long _ms;
     private WriteableBitmap _wb;
-    public bool AllowDiagonal { get; set; } = true;
+#pragma warning disable CS4014
+    public bool AllowDiagonal { get => _allowDiagonal; set { _allowDiagonal = value; PathFinding(); } }
+#pragma warning restore CS4014
     public bool AlwaysPath { get; set; } = true;
     public int TileSize { get; set; }
     public int Top { get; set; }
@@ -52,6 +54,7 @@ public class MainWindowViewModel : ObservableObject
     private int _currentPlayer = 1;
     public int CurrentPlayer { get => _currentPlayer; set => SetProperty(ref _currentPlayer, value); }
     public Dictionary<int, (Tile Source, Tile Destination)> PlayerDictionary = new();
+    private bool _allowDiagonal = true;
     public int PlayerCount { get; set; }
 
     public RelayCommand ResetCommand { get; set; }
@@ -168,7 +171,7 @@ public class MainWindowViewModel : ObservableObject
 
             //Not really useful at the moment.
             //await Chunking(cells, thisDate);
-            Trace.WriteLine($"Player number: { key}. ({sourceCell.X},{sourceCell.Y}) to ({destCell.X},{destCell.Y})");
+            Trace.WriteLine($"Player number: {key}. ({sourceCell.X},{sourceCell.Y}) to ({destCell.X},{destCell.Y})");
             Trace.WriteLine($"{sw.ElapsedMilliseconds} ms to set up solver."); //~10
             var solutionIds = await Solver.SolveAsync(cells, sourceCell, destCell, null, thisDate, AllowDiagonal);
             if (solutionIds.SolutionCells is null || !solutionIds.SolutionCells.Any()) return;
@@ -335,7 +338,6 @@ public class MainWindowViewModel : ObservableObject
     {
         //var sw = new Stopwatch();
         //sw.Start();
-
         if (PlayerDictionary[playerNumber].Destination is null || PlayerDictionary[playerNumber].Source is null) return (null, null);
         var cells = GetTileStateCells(PlayerDictionary[playerNumber].Destination, PlayerDictionary[playerNumber].Source, State.Tiles);
         //Trace.WriteLine($"{sw.ElapsedMilliseconds} ms to get Cells of interest 2"); //4

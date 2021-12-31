@@ -35,7 +35,7 @@ public partial class MainWindow
     private double rightClickY;
     private readonly List<Color> metroColors;
     private readonly Dictionary<Key, int> NumberKeys;
-
+    private readonly Dictionary<Key, (int X, int Y)> MovementKeys;
 
     public MainWindow()
     {
@@ -60,13 +60,17 @@ public partial class MainWindow
         };
 
         NumberKeys = new() { { Key.D1, 1 }, { Key.D2, 2 }, { Key.D3, 3 }, { Key.D4, 4 }, { Key.D5, 5 }, { Key.NumPad1, 1 }, { Key.NumPad2, 2 }, { Key.NumPad3, 3 }, { Key.NumPad4, 4 }, { Key.NumPad5, 5 } };
-        //TODO: I should get WASD to move the map around.
-        //TODO: What if I got "R" to get a Rectangle you could throw in? "C" for a circle. 
+        MovementKeys = new() { { Key.W, (0, -1) }, { Key.S, (0, 1) }, { Key.A, (-1, 0) }, { Key.D, (1, 0) } };
+
+        //TODO: What if I got "R" to get a Rectangle you could throw in? "C" for a circle.
+        //Maybe "C" is for conveyor. 
     }
 
     private async void RenderTickAsync(object sender, EventArgs e)
     {
         if (Keyboard.FocusedElement is not TextBox) { foreach (var kvp in NumberKeys) { if (Keyboard.IsKeyDown(kvp.Key)) { Vm.CurrentPlayer = Math.Min(kvp.Value, Vm.PlayerCount); } } }
+        if (Keyboard.FocusedElement is not TextBox) { foreach (var kvp in MovementKeys) { if (Keyboard.IsKeyDown(kvp.Key)) { Vm.Left += 10 * kvp.Value.X; Vm.Top += 10 * kvp.Value.Y; } } }
+        Vm.Left = Math.Max(0, Vm.Left); Vm.Top = Math.Max(0, Vm.Top);
 
         var dt = DateTime.Now;
         if (dt - _dt > TimeSpan.FromMilliseconds(1000))
@@ -105,6 +109,7 @@ public partial class MainWindow
 
                 if (tile.IsPartOfSolution) { Wb.FillEllipseCentered(tile.X * TileSize + (TileSize / 2 - LeftX), tile.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, Colors.White); }
 
+                //TODO: Replace this switch with just looking up Players that have things that are populated. 
                 switch (tile.TileRole)
                 {
                     case TileRole.Source: Wb.FillEllipseCentered(tile.X * TileSize + TileSize / 2 - LeftX, tile.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, Colors.Green); continue;
@@ -160,10 +165,7 @@ public partial class MainWindow
         TextImage.Source = new DrawingImage(new DrawingVisual().Drawing);
     }
 
-    private void Image_MouseLeave(object sender, MouseEventArgs e)
-    {
-        _point = null;
-    }
+    private void Image_MouseLeave(object sender, MouseEventArgs e) => _point = null;
 
     private void Image_MouseMove(object sender, MouseEventArgs e)
     {
