@@ -95,6 +95,8 @@
                MouseRightButtonDown="UIElement_OnMouseRightButtonDown"
                MouseLeftButtonUp="UIElement_OnMouseLeftButtonUp"
                MouseWheel="TextImage_OnMouseWheel"
+               x:Name="WriteableBitmapImage"
+               Focusable="True"
                 />
             <!--ContextMenu="{StaticResource myMenu}" ContextMenuOpening="TextImage_ContextMenuOpening"-->
         </Grid>

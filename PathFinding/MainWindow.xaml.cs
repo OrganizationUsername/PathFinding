@@ -60,7 +60,7 @@ public partial class MainWindow
         };
 
         NumberKeys = new() { { Key.D1, 1 }, { Key.D2, 2 }, { Key.D3, 3 }, { Key.D4, 4 }, { Key.D5, 5 }, { Key.NumPad1, 1 }, { Key.NumPad2, 2 }, { Key.NumPad3, 3 }, { Key.NumPad4, 4 }, { Key.NumPad5, 5 } };
-        MovementKeys = new() { { Key.W, (0, -1) }, { Key.S, (0, 1) }, { Key.A, (-1, 0) }, { Key.D, (1, 0) } };
+        MovementKeys = new() { { Key.W, (0, -1) }, { Key.S, (0, 1) }, { Key.A, (-1, 0) }, { Key.D, (1, 0) }, { Key.Up, (0, -1) }, { Key.Down, (0, 1) }, { Key.Left, (-1, 0) }, { Key.Right, (1, 0) } };
 
         //TODO: What if I got "R" to get a Rectangle you could throw in? "C" for a circle.
         //Maybe "C" is for conveyor. 
@@ -69,7 +69,7 @@ public partial class MainWindow
     private async void RenderTickAsync(object sender, EventArgs e)
     {
         if (Keyboard.FocusedElement is not TextBox) { foreach (var kvp in NumberKeys) { if (Keyboard.IsKeyDown(kvp.Key)) { Vm.CurrentPlayer = Math.Min(kvp.Value, Vm.PlayerCount); } } }
-        if (Keyboard.FocusedElement is not TextBox) { foreach (var kvp in MovementKeys) { if (Keyboard.IsKeyDown(kvp.Key)) { Vm.Left += 10 * kvp.Value.X; Vm.Top += 10 * kvp.Value.Y; } } }
+        if (Keyboard.FocusedElement is not TextBox) { foreach (var kvp in MovementKeys) { if (Keyboard.IsKeyDown(kvp.Key)) { Vm.Left += 10 * kvp.Value.X; Vm.Top += 10 * kvp.Value.Y; DrawCostText(_cellBackup); } } }
         Vm.Left = Math.Max(0, Vm.Left); Vm.Top = Math.Max(0, Vm.Top);
 
         var dt = DateTime.Now;
@@ -140,6 +140,7 @@ public partial class MainWindow
 
     private void DrawCostText(Cell[,] cellCosts)
     {
+        ClearText();
         if (!Vm.ShowNumbers) return;
         if (cellCosts is null) return;
         var visual = new DrawingVisual();
@@ -170,9 +171,9 @@ public partial class MainWindow
     private void Image_MouseMove(object sender, MouseEventArgs e)
     {
         var thisPosition = e.GetPosition(sender as Image);
+        Keyboard.Focus(WriteableBitmapImage);
         if (e.MiddleButton == MouseButtonState.Pressed && _point is not null)
         {
-            ClearText();
             DrawCostText(_cellBackup);
             //capture mouse moving to the left to increase x
             Vm.Left -= (int)(thisPosition.X - _point!.Value.X);
@@ -214,7 +215,6 @@ public partial class MainWindow
 
         _clicked = false;
         Vm.LeftButtonClick = _clicked;
-        ClearText();
         DrawCostText(_cellBackup);
     }
 

@@ -366,6 +366,7 @@ public class MainWindowViewModel : ObservableObject
         if (!point.HasValue) return;
         var tile = GetTileAtLocation(point);
         if (tile is null) return;
+        if (AlreadyClicked.Any(t => t.Id == tile.Id)) return;
         tile.IsPassable = !tile.IsPassable;
         if (!tile.IsPassable)
         {
@@ -385,6 +386,7 @@ public class MainWindowViewModel : ObservableObject
 
     private async Task GetDownClicks(Point? point)
     {
+        //TryFlipElement(point);
         //TODO: Too much duplicated code with TryFlipElement
         var tile = GetTileAtLocation(point);
         if (tile is null) return;
@@ -423,10 +425,16 @@ public class MainWindowViewModel : ObservableObject
         var tile = GetTileAtLocation(point);
         if (tile is null) return;
 
-        foreach (var kvp in PlayerDictionary)
+        var keys = PlayerDictionary.Keys.ToArray();
+        for (var index = 0; index < keys.Length; index++)
         {
-            if (kvp.Value.Destination == tile) { PlayerDictionary[kvp.Key] = (kvp.Value.Source, null); tile.TileRole = TileRole.Nothing; return; }
-            if (kvp.Value.Source == tile) { PlayerDictionary[kvp.Key] = (null, kvp.Value.Source); tile.TileRole = TileRole.Nothing; return; }
+            var key = keys[index];
+
+            var kvp = PlayerDictionary[key];
+            if (kvp.Destination is not null && !kvp.Destination.IsPassable) kvp = (kvp.Source, null);
+            if (kvp.Source is not null && !kvp.Source.IsPassable) kvp = (null, kvp.Destination);
+            if (kvp.Destination == tile) { PlayerDictionary[key] = (kvp.Source, null); tile.TileRole = TileRole.Nothing; return; }
+            if (kvp.Source == tile) { PlayerDictionary[key] = (null, kvp.Source); tile.TileRole = TileRole.Nothing; return; }
         }
 
         if (tile.TileRole == TileRole.Nothing && tile.IsPassable)
