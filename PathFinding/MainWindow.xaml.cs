@@ -10,6 +10,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using PathFinding.Annotations;
 
 namespace PathFinding;
 
@@ -31,11 +32,11 @@ public partial class MainWindow
     private int TopY => Vm.Top;
     private DateTime _dt = DateTime.Now;
     private int _ticksPerSecond;
-    private double rightClickX;
-    private double rightClickY;
-    private readonly List<Color> metroColors;
-    private readonly Dictionary<Key, int> NumberKeys;
-    private readonly Dictionary<Key, (int X, int Y)> MovementKeys;
+    private double _rightClickX;
+    private double _rightClickY;
+    private readonly List<Color> _metroColors;
+    private readonly Dictionary<Key, int> _numberKeys;
+    private readonly Dictionary<Key, (int X, int Y)> _movementKeys;
 
     public MainWindow()
     {
@@ -47,7 +48,7 @@ public partial class MainWindow
         Vm = DataContext as MainWindowViewModel;
         if (Vm is null) throw new("Bah.");
 
-        metroColors = new()
+        _metroColors = new()
         {
             (Color)ColorConverter.ConvertFromString("#0039A6")!,
             (Color)ColorConverter.ConvertFromString("#FF6319")!,
@@ -59,8 +60,8 @@ public partial class MainWindow
             (Color)ColorConverter.ConvertFromString("#B933AD")!,
         };
 
-        NumberKeys = new() { { Key.D1, 1 }, { Key.D2, 2 }, { Key.D3, 3 }, { Key.D4, 4 }, { Key.D5, 5 }, { Key.NumPad1, 1 }, { Key.NumPad2, 2 }, { Key.NumPad3, 3 }, { Key.NumPad4, 4 }, { Key.NumPad5, 5 } };
-        MovementKeys = new() { { Key.W, (0, -1) }, { Key.S, (0, 1) }, { Key.A, (-1, 0) }, { Key.D, (1, 0) }, { Key.Up, (0, -1) }, { Key.Down, (0, 1) }, { Key.Left, (-1, 0) }, { Key.Right, (1, 0) } };
+        _numberKeys = new() { { Key.D1, 1 }, { Key.D2, 2 }, { Key.D3, 3 }, { Key.D4, 4 }, { Key.D5, 5 }, { Key.NumPad1, 1 }, { Key.NumPad2, 2 }, { Key.NumPad3, 3 }, { Key.NumPad4, 4 }, { Key.NumPad5, 5 } };
+        _movementKeys = new() { { Key.W, (0, -1) }, { Key.S, (0, 1) }, { Key.A, (-1, 0) }, { Key.D, (1, 0) }, { Key.Up, (0, -1) }, { Key.Down, (0, 1) }, { Key.Left, (-1, 0) }, { Key.Right, (1, 0) } };
 
         //TODO: What if I got "R" to get a Rectangle you could throw in? "C" for a circle.
         //Maybe "C" is for conveyor. 
@@ -68,8 +69,8 @@ public partial class MainWindow
 
     private async void RenderTickAsync(object sender, EventArgs e)
     {
-        if (Keyboard.FocusedElement is not TextBox) { foreach (var kvp in NumberKeys) { if (Keyboard.IsKeyDown(kvp.Key)) { Vm.CurrentPlayer = Math.Min(kvp.Value, Vm.PlayerCount); } } }
-        if (Keyboard.FocusedElement is not TextBox) { foreach (var kvp in MovementKeys) { if (Keyboard.IsKeyDown(kvp.Key)) { Vm.Left += 10 * kvp.Value.X; Vm.Top += 10 * kvp.Value.Y; DrawCostText(_cellBackup); } } }
+        if (Keyboard.FocusedElement is not TextBox) { foreach (var kvp in _numberKeys) { if (Keyboard.IsKeyDown(kvp.Key)) { Vm.CurrentPlayer = Math.Min(kvp.Value, Vm.PlayerCount); } } }
+        if (Keyboard.FocusedElement is not TextBox) { foreach (var kvp in _movementKeys) { if (Keyboard.IsKeyDown(kvp.Key)) { Vm.Left += 10 * kvp.Value.X; Vm.Top += 10 * kvp.Value.Y; DrawCostText(_cellBackup); } } }
         Vm.Left = Math.Max(0, Vm.Left); Vm.Top = Math.Max(0, Vm.Top);
 
         var dt = DateTime.Now;
@@ -100,7 +101,7 @@ public partial class MainWindow
                 Color color;
                 if (tile.IsPassable)
                 {
-                    color = tile.ChunkId == -1 ? Colors.LightBlue : metroColors[tile.ChunkId % metroColors.Count];
+                    color = tile.ChunkId == -1 ? Colors.LightBlue : _metroColors[tile.ChunkId % _metroColors.Count];
                     if (Vm.EntitiesToHighlight.Contains(tile)) { color = Colors.Peru; }
                 }
                 else { color = Colors.DarkGray; }
@@ -227,15 +228,16 @@ public partial class MainWindow
 
     private void LoadMapString(object sender, RoutedEventArgs e) => Vm.UploadMapString(Vm.TileString);
 
+    [UsedImplicitly]
     private void TextImage_ContextMenuOpening(object sender, ContextMenuEventArgs e)
     {
-        rightClickX = e.CursorLeft;
-        rightClickY = e.CursorTop;
+        _rightClickX = e.CursorLeft;
+        _rightClickY = e.CursorTop;
         //MessageBox.Show($"{e.CursorLeft},{e.CursorTop}");
     }
 
     private void MenuItem_Click(object sender, RoutedEventArgs e)
     {
-        MessageBox.Show($"{rightClickX},{rightClickY}");
+        MessageBox.Show($"{_rightClickX},{_rightClickY}");
     }
 }

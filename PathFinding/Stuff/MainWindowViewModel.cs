@@ -77,7 +77,7 @@ public class MainWindowViewModel : ObservableObject
         State = new(TileWidth, TileHeight, tileSize, _sp);
         ResetCommand = new(Reset);
         SetupMapString();
-        UploadMapString(@"852_G1MDoI6UrMG9GiZGZmcAQC4OcIxxKhkF2mUv6OGCHTAt23ZocwNyrfhXqphANJ0KX0q1f5I4IwI=");
+        UploadMapString(@"3972_G4MPKI6UrMG9OgaGZmcA+PazpcMVoRic5RaSjucw9kuEwjiE6X+PdCBpPadQ5+4aYxb+3ZR4P2AXHTKVwyFICOUoRdzbftWtK+K3F3UfOz6HDOOTnkWzF/axrIhAE1rXAcQkbteOm+EVzstjgAIyU1lJxdQWWia5mBn7t/Cw1yn0NUoCwITdIsVr9agNoOB1l0C2E0VleTVsOjNjYj202xRJV/J+c4j5F7W4reHA5V03Nmo74vk6SlCaToJJzMny8/RTPfgI/ycUL9yr5xwAi83fCZ7VDZFJrSo+4gleNqkQ2DeivU8YpiaTPIYBDS2O29K80acsoXm2ooP8XJsHQVYNyoe6IzlbrY6ZW3mSsILs+eYPFzOisl+PtxPdrrzOqBl7QGQU9OT8VsLHkE8N5XPNMZB1E+HExD+P9pAIJC9Ls1YS");
     }
 
     public void Reset()
@@ -133,7 +133,7 @@ public class MainWindowViewModel : ObservableObject
         foreach (var tile in State.TileGrid) { tile.IsPartOfSolution = false; }
 
         var keys = PlayerDictionary.Keys.ToArray();
-
+        var notableCount = 0;
         for (var index = 0; index < keys.Length; index++)
         {
             var key = keys[index];
@@ -145,7 +145,7 @@ public class MainWindowViewModel : ObservableObject
             sw.Start();
             //Got all of the cells with H-Score.
             //if (LeftButtonClick) continue;
-            if (!GetCellsOfInterest(out var destCell, out var sourceCell, key)) return;
+            if (!GetCellsOfInterest(out var destCell, out var sourceCell, key)) continue;
             var thisDate = DateTime.Now;
             LastRequestedPathFind = thisDate;
             Trace.WriteLine(thisDate);
@@ -174,19 +174,18 @@ public class MainWindowViewModel : ObservableObject
             Trace.WriteLine($"Player number: {key}. ({sourceCell.X},{sourceCell.Y}) to ({destCell.X},{destCell.Y})");
             Trace.WriteLine($"{sw.ElapsedMilliseconds} ms to set up solver."); //~10
             var solutionIds = await Solver.SolveAsync(cells, sourceCell, destCell, null, thisDate, AllowDiagonal);
-            if (solutionIds.SolutionCells is null || !solutionIds.SolutionCells.Any()) return;
+            if (solutionIds.SolutionCells is null || !solutionIds.SolutionCells.Any()) continue;
             Ms = solutionIds.TimeToSolve;
             Trace.WriteLine($"{Ms}ms to solve ({sourceCell.X},{sourceCell.Y}) to ({destCell.X},{destCell.Y}).");
-            if (solutionIds.thisDate != LastRequestedPathFind) return;
+            if (solutionIds.thisDate != LastRequestedPathFind) continue;
             AnswerCells = solutionIds.AllCells;
             foreach (var cell in solutionIds.SolutionCells)
             {
-                var theTile = State.TileGrid[cell.X, cell.Y];
-                theTile.IsPartOfSolution = true;
-                Trace.WriteLine($"{theTile.X},{theTile.Y}");
+                State.TileGrid[cell.X, cell.Y].IsPartOfSolution = true;
+                //Trace.WriteLine($"{State.TileGrid[cell.X, cell.Y].X},{State.TileGrid[cell.X, cell.Y].Y}");
             }
 
-            var notableCount = 0;
+            
             foreach (var cell in solutionIds.AllCells)
             {
                 if (cell.FCost > int.MaxValue / 3) continue;
@@ -324,14 +323,9 @@ public class MainWindowViewModel : ObservableObject
     {
         //var sw = new Stopwatch();
         //sw.Start();
-        destCell = null;
-        sourceCell = null;
-        var cells = GetCellsFromTiles(playerNumber);
-        if (cells.sourceCell is null) return false;
-        destCell = cells.destinationCell;
-        sourceCell = cells.sourceCell;
+        (sourceCell, destCell) = GetCellsFromTiles(playerNumber);
         //Trace.WriteLine($"{sw.ElapsedMilliseconds} ms to get Cells of interest"); //6
-        return true;
+        return !(sourceCell is null || destCell is null);
     }
 
     public (Cell sourceCell, Cell destinationCell) GetCellsFromTiles(int playerNumber)
