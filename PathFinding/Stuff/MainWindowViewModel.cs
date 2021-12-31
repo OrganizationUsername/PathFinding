@@ -10,9 +10,12 @@ using System.Threading.Tasks;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Microsoft.Toolkit.Mvvm.Input;
+using PathFinding.Annotations;
 using Point = System.Windows.Point;
 
 namespace PathFinding.Stuff;
+
+public enum ClickMode { Player = 0, Conveyor = 1 }
 
 public class MainWindowViewModel : ObservableObject
 {
@@ -56,6 +59,7 @@ public class MainWindowViewModel : ObservableObject
     public Dictionary<int, (Tile Source, Tile Destination)> PlayerDictionary = new();
     private bool _allowDiagonal = true;
     public int PlayerCount { get; set; }
+    public ClickMode ClickMode { get; set; } = ClickMode.Player;
 
     public RelayCommand ResetCommand { get; set; }
 
@@ -63,7 +67,7 @@ public class MainWindowViewModel : ObservableObject
     {
         PlayerCount = 3;
 
-        for (int i = 1; i <= PlayerCount; i++) { PlayerDictionary.Add(i, (null, null)); }
+        for (var i = 1; i <= PlayerCount; i++) { PlayerDictionary.Add(i, (null, null)); }
 
         PixelWidth = 600;
         PixelHeight = 600;
@@ -77,7 +81,7 @@ public class MainWindowViewModel : ObservableObject
         State = new(TileWidth, TileHeight, tileSize, _sp);
         ResetCommand = new(Reset);
         SetupMapString();
-        UploadMapString(@"3972_G4MPKI6UrMG9OgaGZmcA+PazpcMVoRic5RaSjucw9kuEwjiE6X+PdCBpPadQ5+4aYxb+3ZR4P2AXHTKVwyFICOUoRdzbftWtK+K3F3UfOz6HDOOTnkWzF/axrIhAE1rXAcQkbteOm+EVzstjgAIyU1lJxdQWWia5mBn7t/Cw1yn0NUoCwITdIsVr9agNoOB1l0C2E0VleTVsOjNjYj202xRJV/J+c4j5F7W4reHA5V03Nmo74vk6SlCaToJJzMny8/RTPfgI/ycUL9yr5xwAi83fCZ7VDZFJrSo+4gleNqkQ2DeivU8YpiaTPIYBDS2O29K80acsoXm2ooP8XJsHQVYNyoe6IzlbrY6ZW3mSsILs+eYPFzOisl+PtxPdrrzOqBl7QGQU9OT8VsLHkE8N5XPNMZB1E+HExD+P9pAIJC9Ls1YS");
+        UploadMapString(@"3972_G4MPKI6UrMG9OgaGZmcAmLpKbFnWit9TRq0AVogGrRYWkQKSyyR9MuH9AenBv5sSeR+axQ4OHRwOESlSJAS5Z9t9tbIp5bwH/db7lgtKvQ3fH/yDCwonLSau8Y5aty1SCrbmxv20+I7bysl9AkepUN0bb8SGsANKLOiJCCOVU9u/PdYBet5gBsp6XKAeo8WuNkoNM9i8x35DUGYmR2HshCll3M4bPrVsPmGmOrfbSlJsVi5AcEMLzgbP00rTOd1HKeRUSX4C8L9Z9J5BfOKtSR8zs44M8O4CnJ34LyKDi1+JtWLy3HcqERkmHi4KuYeEAVZOkn7jlh3Ids0oomZVmhr0uiun2U/QT+4nJNkSyHAzQT3YYiIzDiVYB7yJesuCYk2e3Df2H0LT9zIwdRrIDAGbymDcWdFEvewh74DIswbs9HJiTy4feNxBJYXpdsockTBZH82r/DHk/7rdEm5CteuHA4xBLV4z55I+3SfLdkRAOvlY8Pk2kj0A");
     }
 
     public void Reset()
@@ -90,7 +94,7 @@ public class MainWindowViewModel : ObservableObject
             State = new(TileWidth, TileHeight, TileSize, _sp);
             AnswerCells = null;
             PlayerDictionary.Clear();
-            for (int i = 1; i <= PlayerCount; i++) { PlayerDictionary.Add(i, (null, null)); }
+            for (var i = 1; i <= PlayerCount; i++) { PlayerDictionary.Add(i, (null, null)); }
         }
     }
 
@@ -179,13 +183,8 @@ public class MainWindowViewModel : ObservableObject
             Trace.WriteLine($"{Ms}ms to solve ({sourceCell.X},{sourceCell.Y}) to ({destCell.X},{destCell.Y}).");
             if (solutionIds.thisDate != LastRequestedPathFind) continue;
             AnswerCells = solutionIds.AllCells;
-            foreach (var cell in solutionIds.SolutionCells)
-            {
-                State.TileGrid[cell.X, cell.Y].IsPartOfSolution = true;
-                //Trace.WriteLine($"{State.TileGrid[cell.X, cell.Y].X},{State.TileGrid[cell.X, cell.Y].Y}");
-            }
+            foreach (var cell in solutionIds.SolutionCells) { State.TileGrid[cell.X, cell.Y].IsPartOfSolution = true; /*Trace.WriteLine($"{State.TileGrid[cell.X, cell.Y].X},{State.TileGrid[cell.X, cell.Y].Y}");*/ }
 
-            
             foreach (var cell in solutionIds.AllCells)
             {
                 if (cell.FCost > int.MaxValue / 3) continue;
@@ -195,6 +194,7 @@ public class MainWindowViewModel : ObservableObject
         }
     }
 
+    [UsedImplicitly]
     private async Task Chunking(Cell[,] cells, DateTime thisDate)
     {
         var chunkSize = 8;
@@ -218,7 +218,7 @@ public class MainWindowViewModel : ObservableObject
         }
 
 
-        int color = 0;
+        var color = 0;
         foreach (var supercell in superCells)
         {
             color++;
@@ -333,33 +333,25 @@ public class MainWindowViewModel : ObservableObject
         //var sw = new Stopwatch();
         //sw.Start();
         if (PlayerDictionary[playerNumber].Destination is null || PlayerDictionary[playerNumber].Source is null) return (null, null);
-        var cells = GetTileStateCells(PlayerDictionary[playerNumber].Destination, PlayerDictionary[playerNumber].Source, State.Tiles);
+        var destination = PlayerDictionary[playerNumber].Destination;
+        var source = PlayerDictionary[playerNumber].Source;
+        Cell destinationCell = new() { Id = destination.Id, HScore = Math.Abs(destination.X - destination.X) + Math.Abs(destination.Y - destination.Y), X = destination.X, Y = destination.Y, Passable = destination.IsPassable };
+        Cell sourceCell = new() { Id = source.Id, HScore = Math.Abs(source.X - destination.X) + Math.Abs(source.Y - destination.Y), X = source.X, Y = source.Y, Passable = source.IsPassable };
         //Trace.WriteLine($"{sw.ElapsedMilliseconds} ms to get Cells of interest 2"); //4
-        return cells;
+        return (sourceCell, destinationCell);
     }
 
-    private (Cell sourceCell, Cell destinationCell) GetTileStateCells(Tile destination, Tile source, IList<Tile> tiles)
-    {
-        Trace.WriteLine($"Getting ({source.X},{source.Y}) to ({destination.X},{destination.Y}).");
-
-        Cell destinationCell = null;
-        Cell sourceCell = null;
-        for (var i = 0; i < tiles.Count; i++)
-        {
-            var tile = tiles[i];
-            if (tile.TileRole == TileRole.Nothing) continue;
-            if (tile == destination) { destinationCell = new() { Id = tile.Id, HScore = Math.Abs(tile.X - destination.X) + Math.Abs(tile.Y - destination.Y), X = tile.X, Y = tile.Y, Passable = tile.IsPassable }; }
-            if (tile == source) { sourceCell = new() { Id = tile.Id, HScore = Math.Abs(tile.X - destination.X) + Math.Abs(tile.Y - destination.Y), X = tile.X, Y = tile.Y, Passable = tile.IsPassable }; }
-            if (destinationCell is not null && sourceCell is not null) return (sourceCell, destinationCell);
-        }
-        return (null, null);
-    }
-
-    public async void TryFlipElement(Point? point)
+    public async Task TryFlipElement(Point? point)
     {
         if (!point.HasValue) return;
         var tile = GetTileAtLocation(point);
         if (tile is null) return;
+        if (ClickMode == ClickMode.Player) { await ProcessPlayerModeClick(tile); }
+
+    }
+
+    private async Task ProcessPlayerModeClick(Tile tile)
+    {
         if (AlreadyClicked.Any(t => t.Id == tile.Id)) return;
         tile.IsPassable = !tile.IsPassable;
         if (!tile.IsPassable)
@@ -371,31 +363,10 @@ public class MainWindowViewModel : ObservableObject
                 if (kvp.Value.Source == tile) PlayerDictionary[kvp.Key] = (null, kvp.Value.Source);
             }
         }
+
         AlreadyClicked.Add(tile);
         EntitiesToHighlight.Clear();
         EntitiesToHighlight.Add(tile);
-        if (AlwaysPath) await PathFinding();
-        SetupMapString();
-    }
-
-    private async Task GetDownClicks(Point? point)
-    {
-        //TryFlipElement(point);
-        //TODO: Too much duplicated code with TryFlipElement
-        var tile = GetTileAtLocation(point);
-        if (tile is null) return;
-        if (AlreadyClicked.Any(t => t.Id == tile.Id)) return;
-        tile.IsPassable = !tile.IsPassable;
-        if (!tile.IsPassable)
-        {
-            tile.TileRole = TileRole.Nothing;
-            foreach (var kvp in PlayerDictionary)
-            {
-                if (kvp.Value.Destination == tile) PlayerDictionary[kvp.Key] = (kvp.Value.Source, null);
-                if (kvp.Value.Source == tile) PlayerDictionary[kvp.Key] = (null, kvp.Value.Source);
-            }
-        }
-        AlreadyClicked.Add(tile);
         if (AlwaysPath) await PathFinding();
         SetupMapString();
     }
@@ -418,7 +389,12 @@ public class MainWindowViewModel : ObservableObject
         if (!point.HasValue) return;
         var tile = GetTileAtLocation(point);
         if (tile is null) return;
+        if (ClickMode == ClickMode.Player) { HandleRightClickPlayerMode(tile); }
+    }
 
+    private async void HandleRightClickPlayerMode(Tile tile)
+    {
+        //ToDo: Make sure right-clicking source/destination doesn't put it in a bad state.
         var keys = PlayerDictionary.Keys.ToArray();
         for (var index = 0; index < keys.Length; index++)
         {
@@ -427,21 +403,46 @@ public class MainWindowViewModel : ObservableObject
             var kvp = PlayerDictionary[key];
             if (kvp.Destination is not null && !kvp.Destination.IsPassable) kvp = (kvp.Source, null);
             if (kvp.Source is not null && !kvp.Source.IsPassable) kvp = (null, kvp.Destination);
-            if (kvp.Destination == tile) { PlayerDictionary[key] = (kvp.Source, null); tile.TileRole = TileRole.Nothing; return; }
-            if (kvp.Source == tile) { PlayerDictionary[key] = (null, kvp.Source); tile.TileRole = TileRole.Nothing; return; }
+            if (kvp.Destination == tile)
+            {
+                PlayerDictionary[key] = (kvp.Source, null);
+                tile.TileRole = TileRole.Nothing;
+                return;
+            }
+
+            if (kvp.Source == tile)
+            {
+                PlayerDictionary[key] = (null, kvp.Source);
+                tile.TileRole = TileRole.Nothing;
+                return;
+            }
         }
 
         if (tile.TileRole == TileRole.Nothing && tile.IsPassable)
         {
-            if (PlayerDictionary[CurrentPlayer].Source is null) { PlayerDictionary[CurrentPlayer] = (tile, PlayerDictionary[CurrentPlayer].Destination); tile.TileRole = TileRole.Source; return; }
-            if (PlayerDictionary[CurrentPlayer].Destination is null) { PlayerDictionary[CurrentPlayer] = (PlayerDictionary[CurrentPlayer].Source, tile); tile.TileRole = TileRole.Destination; return; }
+            if (PlayerDictionary[CurrentPlayer].Source is null)
+            {
+                PlayerDictionary[CurrentPlayer] = (tile, PlayerDictionary[CurrentPlayer].Destination);
+                tile.TileRole = TileRole.Source;
+                if (AlwaysPath) await PathFinding();
+                return;
+            }
+
+            if (PlayerDictionary[CurrentPlayer].Destination is null)
+            {
+                PlayerDictionary[CurrentPlayer] = (PlayerDictionary[CurrentPlayer].Source, tile);
+                tile.TileRole = TileRole.Destination;
+                if (AlwaysPath) await PathFinding();
+                return;
+            }
         }
+        
     }
 
     public async Task Tick(Point? point, bool clicked)
     {
         GetHoverElements(point);
-        if (clicked) { await GetDownClicks(point); }
+        if (clicked) { await TryFlipElement(point); }
         else { AlreadyClicked.Clear(); }
     }
 }

@@ -37,6 +37,7 @@ public partial class MainWindow
     private readonly List<Color> _metroColors;
     private readonly Dictionary<Key, int> _numberKeys;
     private readonly Dictionary<Key, (int X, int Y)> _movementKeys;
+    public List<Key> LastPressedKeys = new List<Key>();
 
     public MainWindow()
     {
@@ -71,6 +72,9 @@ public partial class MainWindow
     {
         if (Keyboard.FocusedElement is not TextBox) { foreach (var kvp in _numberKeys) { if (Keyboard.IsKeyDown(kvp.Key)) { Vm.CurrentPlayer = Math.Min(kvp.Value, Vm.PlayerCount); } } }
         if (Keyboard.FocusedElement is not TextBox) { foreach (var kvp in _movementKeys) { if (Keyboard.IsKeyDown(kvp.Key)) { Vm.Left += 10 * kvp.Value.X; Vm.Top += 10 * kvp.Value.Y; DrawCostText(_cellBackup); } } }
+        if (Keyboard.FocusedElement is not TextBox) { if (Keyboard.IsKeyDown(Key.C) && !LastPressedKeys.Contains(Key.C)) { Vm.ClickMode = 1 - Vm.ClickMode; LastPressedKeys.Add(Key.C); } }
+        if (!Keyboard.IsKeyDown(Key.C) && LastPressedKeys.Contains(Key.C)) LastPressedKeys.Remove(Key.C);
+        
         Vm.Left = Math.Max(0, Vm.Left); Vm.Top = Math.Max(0, Vm.Top);
 
         var dt = DateTime.Now;
@@ -193,19 +197,18 @@ public partial class MainWindow
 
     private async Task FindPathAsync() => await Vm.PathFinding();
 
-    private void UIElement_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private async void UIElement_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         var point = e.GetPosition(sender as Image);
         _clicked = e.LeftButton == MouseButtonState.Pressed;
         Vm.LeftButtonClick = _clicked;
-        Vm.TryFlipElement(point);
+        await Vm.TryFlipElement(point);
     }
 
-    private async void UIElement_OnMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    private void UIElement_OnMouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
         var point = e.GetPosition(sender as Image);
         Vm.FlipElementSourceDestination(point);
-        await FindPathAsync();
     }
 
     private void TextImage_OnMouseWheel(object sender, MouseWheelEventArgs e)
@@ -219,11 +222,10 @@ public partial class MainWindow
         DrawCostText(_cellBackup);
     }
 
-    private async void UIElement_OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    private void UIElement_OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         _clicked = false;
         Vm.LeftButtonClick = _clicked;
-        if (Vm.AlwaysPath) await Vm.PathFinding();
     }
 
     private void LoadMapString(object sender, RoutedEventArgs e) => Vm.UploadMapString(Vm.TileString);

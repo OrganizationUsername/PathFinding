@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:stuff="clr-namespace:PathFinding.Stuff"
         mc:Ignorable="d"
-        Title="MainWindow" Height="550" Width="600">
+        Title="MainWindow" Height="650" Width="740">
     <Window.DataContext>
         <stuff:MainWindowViewModel/>
     </Window.DataContext>
