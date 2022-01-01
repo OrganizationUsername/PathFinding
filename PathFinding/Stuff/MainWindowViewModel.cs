@@ -58,6 +58,7 @@ public class MainWindowViewModel : ObservableObject
     public int PlayerCount { get; set; }
     public ClickMode ClickMode { get; set; } = ClickMode.Player;
     public Tile SelectedConveyorTile { get; set; }
+    public List<Conveyor> Conveyors { get; set; } = new();
 
     public RelayCommand ResetCommand { get; set; }
 
@@ -131,20 +132,11 @@ public class MainWindowViewModel : ObservableObject
     }
 
 
-    public async Task<(List<Cell> SolutionCells, Cell[,] AllCells, long TimeToSolve, DateTime thisDate)> PathFinding(Tile destination, Tile source, bool allowDiagonal)
+    public async Task<(List<Cell> SolutionCells, Cell[,] AllCells, long TimeToSolve, DateTime thisDate)> PathFinding(Tile destination, Tile source, bool allowDiagonal, DateTime requestDate)
     {
-        var sw = new Stopwatch();
-        sw.Start();
-        //Got all of the cells with H-Score.
-        //if (LeftButtonClick) continue;
-
-        Cell destCell = new() { Id = destination.Id, HScore = Math.Abs(destination.X - destination.X) + Math.Abs(destination.Y - destination.Y), X = destination.X, Y = destination.Y, Passable = destination.IsPassable };
+        Cell destCell = new() { Id = destination.Id, HScore = 0, X = destination.X, Y = destination.Y, Passable = destination.IsPassable };
         Cell sourceCell = new() { Id = source.Id, HScore = Math.Abs(source.X - destination.X) + Math.Abs(source.Y - destination.Y), X = source.X, Y = source.Y, Passable = source.IsPassable };
 
-
-        var thisDate = DateTime.Now;
-        LastRequestedPathFind = thisDate;
-        Trace.WriteLine(thisDate);
         var cells = new Cell[State.X, State.Y];
 
         foreach (var t in State.Tiles)
@@ -166,20 +158,21 @@ public class MainWindowViewModel : ObservableObject
         }
 
         //Not really useful at the moment.
-        //await Chunking(cells, thisDate);
-        var solution = await Solver.SolveAsync(cells, sourceCell, destCell, null, thisDate, allowDiagonal);
+        //await Chunking(cells, requestDate);
+        var solution = await Solver.SolveAsync(cells, sourceCell, destCell, null, requestDate, allowDiagonal);
         if (solution.SolutionCells is null || !solution.SolutionCells.Any()) return default;
         Trace.WriteLine($"{solution.TimeToSolve}ms to solve ({sourceCell.X},{sourceCell.Y}) to ({destCell.X},{destCell.Y}).");
-        if (solution.thisDate != LastRequestedPathFind) return default;
         return solution;
     }
 
 
-    public async Task<(List<Cell> SolutionCells, Cell[,] AllCells, long TimeToSolve, DateTime thisDate)> PlayerPathFinding()
+    public async Task PlayerPathFinding()
     {
+        var requestDate = DateTime.Now;
+        LastRequestedPathFind = requestDate;
+
         foreach (var tile in State.TileGrid) { tile.IsPartOfSolution = false; }
 
-        (List<Cell> SolutionCells, Cell[,] AllCells, long TimeToSolve, DateTime thisDate) x = default;
         var keys = PlayerDictionary.Keys.ToArray();
         var notableCount = 0;
         for (var index = 0; index < keys.Length; index++)
@@ -189,30 +182,18 @@ public class MainWindowViewModel : ObservableObject
 
             if (destination is null || source is null) { continue; }
 
-            var sw = new Stopwatch();
-            sw.Start();
-            var thisDate = DateTime.Now;
-            LastRequestedPathFind = thisDate;
+            var solution = await PathFinding(destination, source, AllowDiagonal, requestDate);
 
-            var solution = await PathFinding(destination, source, AllowDiagonal);
+            if (solution.SolutionCells is null || !solution.SolutionCells.Any() || solution.thisDate != LastRequestedPathFind) continue;
 
-            if (solution.SolutionCells is null || !solution.SolutionCells.Any()) continue;
             Trace.WriteLine($"{solution.TimeToSolve}ms to solve ({source.X},{source.Y}) to ({source.X},{destination.Y}).");
-            if (solution.thisDate != LastRequestedPathFind) continue;
+
             foreach (var cell in solution.SolutionCells) { State.TileGrid[cell.X, cell.Y].IsPartOfSolution = true; }
+            foreach (var cell in solution.AllCells) { notableCount = (cell.FCost > int.MaxValue / 3) ? notableCount + 1 : notableCount; }
 
-            foreach (var cell in solution.AllCells)
-            {
-                if (cell.FCost > int.MaxValue / 3) continue;
-                notableCount++;
-            }
-
-            CellsScored = notableCount;
-            AnswerCells = solution.AllCells;
-            x = solution;
+            //CellsScored = notableCount; //Wrong at the moment
+            //AnswerCells = solution.AllCells; //Wrong at the moment
         }
-
-        return x;
     }
 
     [UsedImplicitly]
@@ -408,7 +389,7 @@ public class MainWindowViewModel : ObservableObject
         }
     }
 
-    private void HandleRightClickAddConveyorNode(Tile tile)
+    private async void HandleRightClickAddConveyorNode(Tile tile)
     {
 
         if (SelectedConveyorTile is null)
@@ -416,6 +397,12 @@ public class MainWindowViewModel : ObservableObject
             SelectedConveyorTile = tile;
             return;
         }
+
+        var result = await PathFinding(tile, SelectedConveyorTile, false, DateTime.Now);
+        SelectedConveyorTile = null;
+        Conveyors.Add(new() { Cells = result.SolutionCells.Select(x => State.TileGrid[x.X, x.Y]).ToList() });
+
+
 
 
 
@@ -500,6 +487,11 @@ public class MainWindowViewModel : ObservableObject
         if (leftClicked) { await HandleLeftClick(point); }
         else { AlreadyClicked.Clear(); }
     }
+}
+
+public class Conveyor
+{
+    public List<Tile> Cells { get; set; }
 }
 
 public class Tile

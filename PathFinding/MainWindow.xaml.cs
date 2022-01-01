@@ -125,6 +125,15 @@ public partial class MainWindow
             }
         }
 
+        foreach (var conveyor in Vm.Conveyors)
+        {
+            foreach (var cell in conveyor.Cells)
+            {
+                Wb.FillRectangle(cell.X * TileSize + 1 - LeftX, cell.Y * TileSize + 1 - TopY, cell.X * TileSize + TileSize - 1 - LeftX, cell.Y * TileSize + TileSize - 1 - TopY, Colors.Black);
+            }
+        }
+
+
         //if (_ran.NextDouble() < -0.0005)
         //{
         //    var bm = new BitmapImage(new("Assets/Human.png", UriKind.Relative));
