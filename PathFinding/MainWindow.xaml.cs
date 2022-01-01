@@ -199,7 +199,7 @@ public partial class MainWindow
         var point = e.GetPosition(sender as Image);
         _clicked = e.LeftButton == MouseButtonState.Pressed;
         Vm.LeftButtonClick = _clicked;
-        await Vm.TryFlipElement(point);
+        await Vm.HandleLeftClick(point);
     }
 
     private void UIElement_OnMouseRightButtonDown(object sender, MouseButtonEventArgs e) => Vm.FlipElementSourceDestination(e.GetPosition(sender as Image));
@@ -223,9 +223,5 @@ public partial class MainWindow
     private void TextImage_ContextMenuOpening(object sender, ContextMenuEventArgs e) => (_rightClickX, _rightClickY) = (e.CursorLeft, e.CursorTop); /*MessageBox.Show($"{e.CursorLeft},{e.CursorTop}");*/
     /* AdmSnyder is great: MessageBox.Show($"{(_rightClickX, _rightClickY) = (e.CursorLeft, e.CursorTop)}"); */
 
-
-    private void MenuItem_Click(object sender, RoutedEventArgs e)
-    {
-        MessageBox.Show($"{_rightClickX},{_rightClickY}");
-    }
+    private void MenuItem_Click(object sender, RoutedEventArgs e) => MessageBox.Show($"{_rightClickX},{_rightClickY}");
 }

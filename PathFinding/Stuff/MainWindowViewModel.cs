@@ -3,9 +3,7 @@ using PathFinding.Core;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO.Compression;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -341,16 +339,25 @@ public class MainWindowViewModel : ObservableObject
         return (sourceCell, destinationCell);
     }
 
-    public async Task TryFlipElement(Point? point)
+    public async Task HandleLeftClick(Point? point)
     {
         if (!point.HasValue) return;
         var tile = GetTileAtLocation(point);
         if (tile is null) return;
-        if (ClickMode == ClickMode.Player) { await ProcessPlayerModeClick(tile); }
-
+        switch (ClickMode)
+        {
+            case ClickMode.Player:
+                await TryFlipElement(tile); return;
+            case ClickMode.Conveyor:
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
     }
 
-    private async Task ProcessPlayerModeClick(Tile tile)
+
+
+    private async Task TryFlipElement(Tile tile)
     {
         if (AlreadyClicked.Any(t => t.Id == tile.Id)) return;
         tile.IsPassable = !tile.IsPassable;
@@ -389,8 +396,48 @@ public class MainWindowViewModel : ObservableObject
         if (!point.HasValue) return;
         var tile = GetTileAtLocation(point);
         if (tile is null) return;
-        if (ClickMode == ClickMode.Player) { HandleRightClickPlayerMode(tile); }
+        switch (ClickMode)
+        {
+            case ClickMode.Player:
+                HandleRightClickPlayerMode(tile);
+                break;
+            case ClickMode.Conveyor:
+                HandleRightClickAddConveyorNode(tile);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
     }
+
+    private void HandleRightClickAddConveyorNode(Tile tile)
+    {
+        /*
+        https://enzisoft.wordpress.com/2016/03/12/factorio-in-unityc-goal-reached/ 
+        https://www.factorio.com/blog/post/fff-148
+        https://docs.flexsim.com/en/19.2/ConnectingFlows/Conveyors/CreatingConveyorLogic/
+        https://github.com/Club559/FactoryMod/tree/master/FactoryMan/Items
+        https://github.com/taku686/BeltConveyor
+        https://github.com/skulifh/conveyor_belt_simulator/blob/master/G12-Robust-Software-Systems/Simulation/Initiator.cs 
+
+        We should probably have a list of conveyors.
+        but maybe it should be saved in state.
+        So we have two temp spaces
+        When the second one is filled, we create a conveyor segment according to a path. If no path exists, abandon.
+        Later on I need to have stairs that go over the conveyor so people can get over it.
+        That will probably be a bit troublesome. It means that I have to add something else to the path-finding, since right now I only have a list of paths that substitute from a cell. I would need supplemental.
+        What if conveyors can also be elevated so humans could walk past it?
+        Then I also need to spawn items on the conveyor. 
+        A finished conveyor has an ordered list of tiles. Maybe also references to items on it. 
+        I guess tiles also need to have a list of conveyorTiles.
+        I also need to have a direction for each of them.
+        In the end, a conveyor should be composed of segments.
+        Rotating items as they go around bends should be fun.
+        I also need to think about how this will run on a server. (timeStep Event = any item leaving/entering conveyor/segment)
+
+        */
+    }
+
+
 
     private async void HandleRightClickPlayerMode(Tile tile)
     {
@@ -436,13 +483,13 @@ public class MainWindowViewModel : ObservableObject
                 return;
             }
         }
-        
+
     }
 
-    public async Task Tick(Point? point, bool clicked)
+    public async Task Tick(Point? point, bool leftClicked)
     {
         GetHoverElements(point);
-        if (clicked) { await TryFlipElement(point); }
+        if (leftClicked) { await HandleLeftClick(point); }
         else { AlreadyClicked.Clear(); }
     }
 }
@@ -510,60 +557,3 @@ public class State
     public (int X, int Y, string[] mapStringArray, bool Success) UploadMapString(string mapString) => _sp.UploadMapString(mapString);
 }
 
-public interface IStatePersistence
-{
-    string SetupMapString(ref int X, ref int Y, ref Tile[,] TileGrid);
-    (int X, int Y, string[] mapStringArray, bool Success) UploadMapString(string mapString);
-}
-
-public class StatePersistence : IStatePersistence
-{
-    public string SetupMapString(ref int X, ref int Y, ref Tile[,] TileGrid)
-    {
-        var sb = new StringBuilder();
-        sb.Append(X + ";");
-        sb.Append(Y + ";");
-        for (var x = 0; x < X; x++)
-        {
-            for (var y = 0; y < Y; y++) { sb.Append(TileGrid[x, y].IsPassable ? "0" : "1"); }
-            sb.Append(";");
-        }
-
-        var result = GetCompressedString(sb.ToString());
-        return result;
-    }
-
-    private string GetCompressedString(string x)
-    {
-        var input = Encoding.Unicode.GetBytes(x);
-        var memory = new byte[input.Length];
-        var encoded = BrotliEncoder.TryCompress(input, memory, out var outputLength);
-        if (!encoded) return null;
-        return $"{memory.Length}_" + Convert.ToBase64String(memory.Take(outputLength).ToArray());
-    }
-
-    private string DecompressString(string x)
-    {
-        var splitStrings = x.Split('_');
-        var input = Convert.FromBase64String(splitStrings[1]);
-        if (!int.TryParse(splitStrings[0], out var decompressSize)) return null;
-        var output = new byte[decompressSize];
-        if (!BrotliDecoder.TryDecompress(input, output, out var _)) return null;
-        var str = Encoding.Unicode.GetString(output);
-        return str;
-    }
-
-    public (int X, int Y, string[] mapStringArray, bool Success) UploadMapString(string mapString)
-    {
-        mapString = mapString.Trim();
-        var decompressed = DecompressString(mapString);
-        if (decompressed is not null) mapString = decompressed;
-
-        var strings = mapString.Split(';');
-
-        if (!int.TryParse(strings[0], out var newWidth)) return (-1, -1, null, false);
-        if (!int.TryParse(strings[1], out var newHeight)) return (-1, -1, null, false);
-
-        return (newWidth, newHeight, mapString.Split(';'), true);
-    }
-}
