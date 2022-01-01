@@ -31,14 +31,13 @@ public class MainWindowViewModel : ObservableObject
     private long _ms;
     private WriteableBitmap _wb;
 #pragma warning disable CS4014
-    public bool AllowDiagonal { get => _allowDiagonal; set { _allowDiagonal = value; PathFinding(); } }
+    public bool AllowDiagonal { get => _allowDiagonal; set { _allowDiagonal = value; PlayerPathFinding(); } }
 #pragma warning restore CS4014
     public bool AlwaysPath { get; set; } = true;
     public int TileSize { get; set; }
     public int Top { get; set; }
     public int Left { get; set; }
     public bool ShowNumbers { get; set; } = false;
-    public long Ms { get => _ms; set => SetProperty(ref _ms, value); }
     public int PixelWidth { get; set; }
     public int PixelHeight { get; set; }
     public bool LeftButtonClick { get; set; }
@@ -49,7 +48,7 @@ public class MainWindowViewModel : ObservableObject
     public string NewTileWidth { get; set; }
     public string NewTileHeight { get; set; }
     public int Fps { get => _fps; set => SetProperty(ref _fps, value); }
-    public IStatePersistence _sp;
+    public IStatePersistence Sp;
     public DateTime LastRequestedPathFind { get; set; }
     private int _cellsScored;
     private int _currentPlayer = 1;
@@ -58,6 +57,7 @@ public class MainWindowViewModel : ObservableObject
     private bool _allowDiagonal = true;
     public int PlayerCount { get; set; }
     public ClickMode ClickMode { get; set; } = ClickMode.Player;
+    public Tile SelectedConveyorTile { get; set; }
 
     public RelayCommand ResetCommand { get; set; }
 
@@ -75,8 +75,8 @@ public class MainWindowViewModel : ObservableObject
         var tileSize = 10;
         TileSize = tileSize;
         Wb = new(PixelWidth, PixelHeight, dpi, dpi, PixelFormats.Bgra32, null);
-        _sp = new StatePersistence();
-        State = new(TileWidth, TileHeight, tileSize, _sp);
+        Sp = new StatePersistence();
+        State = new(TileWidth, TileHeight, tileSize, Sp);
         ResetCommand = new(Reset);
         SetupMapString();
         UploadMapString(@"3972_G4MPKI6UrMG9OgaGZmcAmLpKbFnWit9TRq0AVogGrRYWkQKSyyR9MuH9AenBv5sSeR+axQ4OHRwOESlSJAS5Z9t9tbIp5bwH/db7lgtKvQ3fH/yDCwonLSau8Y5aty1SCrbmxv20+I7bysl9AkepUN0bb8SGsANKLOiJCCOVU9u/PdYBet5gBsp6XKAeo8WuNkoNM9i8x35DUGYmR2HshCll3M4bPrVsPmGmOrfbSlJsVi5AcEMLzgbP00rTOd1HKeRUSX4C8L9Z9J5BfOKtSR8zs44M8O4CnJ34LyKDi1+JtWLy3HcqERkmHi4KuYeEAVZOkn7jlh3Ids0oomZVmhr0uiun2U/QT+4nJNkSyHAzQT3YYiIzDiVYB7yJesuCYk2e3Df2H0LT9zIwdRrIDAGbymDcWdFEvewh74DIswbs9HJiTy4feNxBJYXpdsockTBZH82r/DHk/7rdEm5CteuHA4xBLV4z55I+3SfLdkRAOvlY8Pk2kj0A");
@@ -89,7 +89,7 @@ public class MainWindowViewModel : ObservableObject
             TileWidth = tileWidth;
             TileHeight = tileHeight;
             TileSize = Math.Max(Math.Min(PixelWidth / tileWidth, PixelHeight / tileHeight), 3);
-            State = new(TileWidth, TileHeight, TileSize, _sp);
+            State = new(TileWidth, TileHeight, TileSize, Sp);
             AnswerCells = null;
             PlayerDictionary.Clear();
             for (var i = 1; i <= PlayerCount; i++) { PlayerDictionary.Add(i, (null, null)); }
@@ -102,7 +102,7 @@ public class MainWindowViewModel : ObservableObject
         if (!mapStringResult.Success) return;
 
         var lineNumber = 1;
-        State = new(mapStringResult.X, mapStringResult.Y, State.TileSize, _sp);
+        State = new(mapStringResult.X, mapStringResult.Y, State.TileSize, Sp);
         for (var x = 0; x < mapStringResult.X; x++)
         {
             lineNumber++;
@@ -130,10 +130,56 @@ public class MainWindowViewModel : ObservableObject
         EntitiesToHighlight.Add(tileR);
     }
 
-    public async Task PathFinding()
+
+    public async Task<(List<Cell> SolutionCells, Cell[,] AllCells, long TimeToSolve, DateTime thisDate)> PathFinding(Tile destination, Tile source, bool allowDiagonal)
+    {
+        var sw = new Stopwatch();
+        sw.Start();
+        //Got all of the cells with H-Score.
+        //if (LeftButtonClick) continue;
+
+        Cell destCell = new() { Id = destination.Id, HScore = Math.Abs(destination.X - destination.X) + Math.Abs(destination.Y - destination.Y), X = destination.X, Y = destination.Y, Passable = destination.IsPassable };
+        Cell sourceCell = new() { Id = source.Id, HScore = Math.Abs(source.X - destination.X) + Math.Abs(source.Y - destination.Y), X = source.X, Y = source.Y, Passable = source.IsPassable };
+
+
+        var thisDate = DateTime.Now;
+        LastRequestedPathFind = thisDate;
+        Trace.WriteLine(thisDate);
+        var cells = new Cell[State.X, State.Y];
+
+        foreach (var t in State.Tiles)
+        {
+            var hScore = Math.Abs(t.X - destCell.X) + Math.Abs(t.Y - destCell.Y);
+            var cell = new Cell()
+            {
+                HScore = hScore * 10,
+                GScore = int.MaxValue / 2,
+                X = t.X,
+                Y = t.Y,
+                Id = t.Id,
+                Passable = t.IsPassable
+            };
+            if (t == destination) { destCell = cell; }
+            if (t == source) { sourceCell = cell; }
+
+            cells[t.X, t.Y] = cell;
+        }
+
+        //Not really useful at the moment.
+        //await Chunking(cells, thisDate);
+        var solution = await Solver.SolveAsync(cells, sourceCell, destCell, null, thisDate, allowDiagonal);
+        if (solution.SolutionCells is null || !solution.SolutionCells.Any()) return default;
+        Trace.WriteLine($"{solution.TimeToSolve}ms to solve ({sourceCell.X},{sourceCell.Y}) to ({destCell.X},{destCell.Y}).");
+        if (solution.thisDate != LastRequestedPathFind) return default;
+        return solution;
+    }
+
+
+    public async Task<(List<Cell> SolutionCells, Cell[,] AllCells, long TimeToSolve, DateTime thisDate)> PlayerPathFinding()
     {
         foreach (var tile in State.TileGrid) { tile.IsPartOfSolution = false; }
 
+        (List<Cell> SolutionCells, Cell[,] AllCells, long TimeToSolve, DateTime thisDate) x = default;
         var keys = PlayerDictionary.Keys.ToArray();
         var notableCount = 0;
         for (var index = 0; index < keys.Length; index++)
@@ -145,51 +191,28 @@ public class MainWindowViewModel : ObservableObject
 
             var sw = new Stopwatch();
             sw.Start();
-            //Got all of the cells with H-Score.
-            //if (LeftButtonClick) continue;
-            if (!GetCellsOfInterest(out var destCell, out var sourceCell, key)) continue;
             var thisDate = DateTime.Now;
             LastRequestedPathFind = thisDate;
-            Trace.WriteLine(thisDate);
-            var cells = new Cell[State.X, State.Y];
 
-            foreach (var t in State.Tiles)
-            {
-                var hScore = Math.Abs(t.X - destCell.X) + Math.Abs(t.Y - destCell.Y);
-                var cell = new Cell()
-                {
-                    HScore = hScore * 10,
-                    GScore = int.MaxValue / 2,
-                    X = t.X,
-                    Y = t.Y,
-                    Id = t.Id,
-                    Passable = t.IsPassable
-                };
-                if (t == destination) { destCell = cell; }
-                if (t == source) { sourceCell = cell; }
+            var solution = await PathFinding(destination, source, AllowDiagonal);
 
-                cells[t.X, t.Y] = cell;
-            }
+            if (solution.SolutionCells is null || !solution.SolutionCells.Any()) continue;
+            Trace.WriteLine($"{solution.TimeToSolve}ms to solve ({source.X},{source.Y}) to ({source.X},{destination.Y}).");
+            if (solution.thisDate != LastRequestedPathFind) continue;
+            foreach (var cell in solution.SolutionCells) { State.TileGrid[cell.X, cell.Y].IsPartOfSolution = true; }
 
-            //Not really useful at the moment.
-            //await Chunking(cells, thisDate);
-            Trace.WriteLine($"Player number: {key}. ({sourceCell.X},{sourceCell.Y}) to ({destCell.X},{destCell.Y})");
-            Trace.WriteLine($"{sw.ElapsedMilliseconds} ms to set up solver."); //~10
-            var solutionIds = await Solver.SolveAsync(cells, sourceCell, destCell, null, thisDate, AllowDiagonal);
-            if (solutionIds.SolutionCells is null || !solutionIds.SolutionCells.Any()) continue;
-            Ms = solutionIds.TimeToSolve;
-            Trace.WriteLine($"{Ms}ms to solve ({sourceCell.X},{sourceCell.Y}) to ({destCell.X},{destCell.Y}).");
-            if (solutionIds.thisDate != LastRequestedPathFind) continue;
-            AnswerCells = solutionIds.AllCells;
-            foreach (var cell in solutionIds.SolutionCells) { State.TileGrid[cell.X, cell.Y].IsPartOfSolution = true; /*Trace.WriteLine($"{State.TileGrid[cell.X, cell.Y].X},{State.TileGrid[cell.X, cell.Y].Y}");*/ }
-
-            foreach (var cell in solutionIds.AllCells)
+            foreach (var cell in solution.AllCells)
             {
                 if (cell.FCost > int.MaxValue / 3) continue;
                 notableCount++;
             }
+
             CellsScored = notableCount;
+            AnswerCells = solution.AllCells;
+            x = solution;
         }
+
+        return x;
     }
 
     [UsedImplicitly]
@@ -317,28 +340,6 @@ public class MainWindowViewModel : ObservableObject
         }
     }
 
-    private bool GetCellsOfInterest(out Cell destCell, out Cell sourceCell, int playerNumber)
-    {
-        //var sw = new Stopwatch();
-        //sw.Start();
-        (sourceCell, destCell) = GetCellsFromTiles(playerNumber);
-        //Trace.WriteLine($"{sw.ElapsedMilliseconds} ms to get Cells of interest"); //6
-        return !(sourceCell is null || destCell is null);
-    }
-
-    public (Cell sourceCell, Cell destinationCell) GetCellsFromTiles(int playerNumber)
-    {
-        //var sw = new Stopwatch();
-        //sw.Start();
-        if (PlayerDictionary[playerNumber].Destination is null || PlayerDictionary[playerNumber].Source is null) return (null, null);
-        var destination = PlayerDictionary[playerNumber].Destination;
-        var source = PlayerDictionary[playerNumber].Source;
-        Cell destinationCell = new() { Id = destination.Id, HScore = Math.Abs(destination.X - destination.X) + Math.Abs(destination.Y - destination.Y), X = destination.X, Y = destination.Y, Passable = destination.IsPassable };
-        Cell sourceCell = new() { Id = source.Id, HScore = Math.Abs(source.X - destination.X) + Math.Abs(source.Y - destination.Y), X = source.X, Y = source.Y, Passable = source.IsPassable };
-        //Trace.WriteLine($"{sw.ElapsedMilliseconds} ms to get Cells of interest 2"); //4
-        return (sourceCell, destinationCell);
-    }
-
     public async Task HandleLeftClick(Point? point)
     {
         if (!point.HasValue) return;
@@ -354,8 +355,6 @@ public class MainWindowViewModel : ObservableObject
                 throw new ArgumentOutOfRangeException();
         }
     }
-
-
 
     private async Task TryFlipElement(Tile tile)
     {
@@ -374,7 +373,7 @@ public class MainWindowViewModel : ObservableObject
         AlreadyClicked.Add(tile);
         EntitiesToHighlight.Clear();
         EntitiesToHighlight.Add(tile);
-        if (AlwaysPath) await PathFinding();
+        if (AlwaysPath) await PlayerPathFinding();
         SetupMapString();
     }
 
@@ -411,6 +410,16 @@ public class MainWindowViewModel : ObservableObject
 
     private void HandleRightClickAddConveyorNode(Tile tile)
     {
+
+        if (SelectedConveyorTile is null)
+        {
+            SelectedConveyorTile = tile;
+            return;
+        }
+
+
+
+
         /*
         https://enzisoft.wordpress.com/2016/03/12/factorio-in-unityc-goal-reached/ 
         https://www.factorio.com/blog/post/fff-148
@@ -433,7 +442,6 @@ public class MainWindowViewModel : ObservableObject
         In the end, a conveyor should be composed of segments.
         Rotating items as they go around bends should be fun.
         I also need to think about how this will run on a server. (timeStep Event = any item leaving/entering conveyor/segment)
-
         */
     }
 
@@ -471,7 +479,7 @@ public class MainWindowViewModel : ObservableObject
             {
                 PlayerDictionary[CurrentPlayer] = (tile, PlayerDictionary[CurrentPlayer].Destination);
                 tile.TileRole = TileRole.Source;
-                if (AlwaysPath) await PathFinding();
+                if (AlwaysPath) await PlayerPathFinding();
                 return;
             }
 
@@ -479,7 +487,7 @@ public class MainWindowViewModel : ObservableObject
             {
                 PlayerDictionary[CurrentPlayer] = (PlayerDictionary[CurrentPlayer].Source, tile);
                 tile.TileRole = TileRole.Destination;
-                if (AlwaysPath) await PathFinding();
+                if (AlwaysPath) await PlayerPathFinding();
                 return;
             }
         }

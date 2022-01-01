@@ -34,10 +34,10 @@
                         <TextBlock Text="Show Numbers"/>
                         <CheckBox IsChecked="{Binding ShowNumbers}"/>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Top">
+                    <!--<StackPanel Orientation="Horizontal" DockPanel.Dock="Top">
                         <TextBlock Text="{Binding Ms}"/>
                         <TextBlock Text="ms"/>
-                    </StackPanel>
+                    </StackPanel>-->
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Top">
                         <TextBox Text="{Binding TileString}" AcceptsReturn="True" Width="30" Height="18"/>
                         <Button Content="Push to load" Click="LoadMapString"/>

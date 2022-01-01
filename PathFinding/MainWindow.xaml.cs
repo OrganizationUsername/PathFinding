@@ -192,7 +192,7 @@ public partial class MainWindow
 
     private async void FindPath(object sender, RoutedEventArgs e) => await FindPathAsync();
 
-    private async Task FindPathAsync() => await Vm.PathFinding();
+    private async Task FindPathAsync() => await Vm.PlayerPathFinding();
 
     private async void UIElement_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
