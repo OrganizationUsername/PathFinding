@@ -405,6 +405,7 @@ public class MainWindowViewModel : ObservableObject
         Conveyors.Add(conveyor);
         foreach (var thing in conveyor.Tiles) { thing.IsPassable = false; }
 
+        await PlayerPathFinding();
 
 
 
