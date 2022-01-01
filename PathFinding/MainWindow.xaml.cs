@@ -127,9 +127,29 @@ public partial class MainWindow
 
         foreach (var conveyor in Vm.Conveyors)
         {
-            foreach (var cell in conveyor.Cells)
+            for (var index = 0; index < conveyor.Tiles.Count; index++)
             {
+                var cell = conveyor.Tiles[index];
+                var nextCell = (index + 1 == conveyor.Tiles.Count) ? null : conveyor.Tiles[index + 1];
                 Wb.FillRectangle(cell.X * TileSize + 1 - LeftX, cell.Y * TileSize + 1 - TopY, cell.X * TileSize + TileSize - 1 - LeftX, cell.Y * TileSize + TileSize - 1 - TopY, Colors.Black);
+                if (index == 0) continue;
+                if (nextCell is not null)
+                {
+                    (int x, int y) direction = (cell.X - nextCell.X, cell.Y - nextCell.Y);
+                    if (direction.x != 0)
+                    {
+                        Wb.FillTriangle(cell.X * TileSize + TileSize / 2, cell.Y * TileSize,
+                                cell.X * TileSize + TileSize / 2, (cell.Y + 1) * TileSize,
+                                (direction.x > 0) ? cell.X * TileSize : (cell.X + 1) * TileSize, cell.Y * TileSize + TileSize / 2, Colors.Yellow);
+
+                    }
+                    else
+                    {
+                        Wb.FillTriangle(cell.X * TileSize, cell.Y * TileSize + TileSize / 2,
+                                (cell.X + 1) * TileSize, cell.Y * TileSize + TileSize / 2,
+                                cell.X * TileSize + TileSize / 2, (direction.y > 0) ? cell.Y * TileSize : (cell.Y + 1) * TileSize, Colors.Yellow);
+                    }
+                }
             }
         }
 

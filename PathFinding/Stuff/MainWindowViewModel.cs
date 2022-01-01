@@ -398,10 +398,12 @@ public class MainWindowViewModel : ObservableObject
             return;
         }
 
-        var result = await PathFinding(tile, SelectedConveyorTile, false, DateTime.Now);
+        var result = await PathFinding(SelectedConveyorTile, tile, false, DateTime.Now);
         SelectedConveyorTile = null;
-        Conveyors.Add(new() { Cells = result.SolutionCells.Select(x => State.TileGrid[x.X, x.Y]).ToList() });
 
+        var conveyor = new Conveyor() { Tiles = result.SolutionCells.Select(x => State.TileGrid[x.X, x.Y]).ToList() };
+        Conveyors.Add(conveyor);
+        foreach (var thing in conveyor.Tiles) { thing.IsPassable = false; }
 
 
 
@@ -491,7 +493,7 @@ public class MainWindowViewModel : ObservableObject
 
 public class Conveyor
 {
-    public List<Tile> Cells { get; set; }
+    public List<Tile> Tiles { get; set; }
 }
 
 public class Tile

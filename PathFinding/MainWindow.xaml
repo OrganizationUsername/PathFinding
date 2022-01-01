@@ -54,7 +54,7 @@
                         <TextBlock Text="{Binding Fps}" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Bottom">
-                        <TextBlock Text="Cells scored: "/>
+                        <TextBlock Text="Tiles scored: "/>
                         <TextBlock Text="{Binding CellsScored}" />
                     </StackPanel>
                 </DockPanel>
