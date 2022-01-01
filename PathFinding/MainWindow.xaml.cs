@@ -132,23 +132,21 @@ public partial class MainWindow
                 var cell = conveyor.Tiles[index];
                 var nextCell = (index + 1 == conveyor.Tiles.Count) ? null : conveyor.Tiles[index + 1];
                 Wb.FillRectangle(cell.X * TileSize + 1 - LeftX, cell.Y * TileSize + 1 - TopY, cell.X * TileSize + TileSize - 1 - LeftX, cell.Y * TileSize + TileSize - 1 - TopY, Colors.Black);
-                if (index == 0) continue;
-                if (nextCell is not null)
+                if (nextCell is null) continue;
+                
+                var (x, y) = (cell.X - nextCell.X, cell.Y - nextCell.Y);
+                if (x != 0)
                 {
-                    (int x, int y) direction = (cell.X - nextCell.X, cell.Y - nextCell.Y);
-                    if (direction.x != 0)
-                    {
-                        Wb.FillTriangle(cell.X * TileSize + TileSize / 2, cell.Y * TileSize,
-                                cell.X * TileSize + TileSize / 2, (cell.Y + 1) * TileSize,
-                                (direction.x > 0) ? cell.X * TileSize : (cell.X + 1) * TileSize, cell.Y * TileSize + TileSize / 2, Colors.Yellow);
+                    Wb.FillTriangle(cell.X * TileSize + TileSize / 2 - LeftX, cell.Y * TileSize - TopY,
+                        cell.X * TileSize + TileSize / 2 - LeftX, (cell.Y + 1) * TileSize - TopY,
+                        (x > 0) ? cell.X * TileSize - LeftX : (cell.X + 1) * TileSize - LeftX, cell.Y * TileSize + TileSize / 2 - TopY, Colors.Yellow);
 
-                    }
-                    else
-                    {
-                        Wb.FillTriangle(cell.X * TileSize, cell.Y * TileSize + TileSize / 2,
-                                (cell.X + 1) * TileSize, cell.Y * TileSize + TileSize / 2,
-                                cell.X * TileSize + TileSize / 2, (direction.y > 0) ? cell.Y * TileSize : (cell.Y + 1) * TileSize, Colors.Yellow);
-                    }
+                }
+                else
+                {
+                    Wb.FillTriangle(cell.X * TileSize - LeftX, cell.Y * TileSize + TileSize / 2 - TopY,
+                        (cell.X + 1) * TileSize - LeftX, cell.Y * TileSize + TileSize / 2 - TopY,
+                        cell.X * TileSize + TileSize / 2 - LeftX, (y > 0) ? cell.Y * TileSize - TopY : (cell.Y + 1) * TileSize - TopY, Colors.Yellow);
                 }
             }
         }
