@@ -125,28 +125,32 @@ public partial class MainWindow
             }
         }
 
-        foreach (var conveyor in Vm.Conveyors)
+        for (var i = 0; i < Vm.Conveyors.Count; i++)
         {
+            var conveyor = Vm.Conveyors[i];
+            Color color = _metroColors[i % _metroColors.Count];
             for (var index = 0; index < conveyor.Tiles.Count; index++)
             {
                 var cell = conveyor.Tiles[index];
                 var nextCell = (index + 1 == conveyor.Tiles.Count) ? null : conveyor.Tiles[index + 1];
-                Wb.FillRectangle(cell.X * TileSize + 1 - LeftX, cell.Y * TileSize + 1 - TopY, cell.X * TileSize + TileSize - 1 - LeftX, cell.Y * TileSize + TileSize - 1 - TopY, Colors.Black);
+                Wb.FillRectangle(cell.X * TileSize + 1 - LeftX, cell.Y * TileSize + 1 - TopY,
+                    cell.X * TileSize + TileSize - 1 - LeftX, cell.Y * TileSize + TileSize - 1 - TopY, Colors.Black);
                 if (nextCell is null) continue;
-                
+
                 var (x, y) = (cell.X - nextCell.X, cell.Y - nextCell.Y);
                 if (x != 0)
                 {
                     Wb.FillTriangle(cell.X * TileSize + TileSize / 2 - LeftX, cell.Y * TileSize - TopY,
                         cell.X * TileSize + TileSize / 2 - LeftX, (cell.Y + 1) * TileSize - TopY,
-                        (x > 0) ? cell.X * TileSize - LeftX : (cell.X + 1) * TileSize - LeftX, cell.Y * TileSize + TileSize / 2 - TopY, Colors.Yellow);
-
+                        (x > 0) ? cell.X * TileSize - LeftX : (cell.X + 1) * TileSize - LeftX,
+                        cell.Y * TileSize + TileSize / 2 - TopY, color);
                 }
                 else
                 {
                     Wb.FillTriangle(cell.X * TileSize - LeftX, cell.Y * TileSize + TileSize / 2 - TopY,
                         (cell.X + 1) * TileSize - LeftX, cell.Y * TileSize + TileSize / 2 - TopY,
-                        cell.X * TileSize + TileSize / 2 - LeftX, (y > 0) ? cell.Y * TileSize - TopY : (cell.Y + 1) * TileSize - TopY, Colors.Yellow);
+                        cell.X * TileSize + TileSize / 2 - LeftX,
+                        (y > 0) ? cell.Y * TileSize - TopY : (cell.Y + 1) * TileSize - TopY, color);
                 }
             }
         }
