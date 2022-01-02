@@ -391,19 +391,28 @@ public class MainWindowViewModel : ObservableObject
 
     private async void HandleRightClickAddConveyorNode(Tile tile)
     {
-
-        if (SelectedConveyorTile is null)
-        {
-            SelectedConveyorTile = tile;
-            return;
-        }
+        if (SelectedConveyorTile is null) { SelectedConveyorTile = tile; return; }
 
         var result = await PathFinding(SelectedConveyorTile, tile, false, DateTime.Now);
         SelectedConveyorTile = null;
+        var conveyor = new Conveyor();
+        for (var index = 0; index < result.SolutionCells.Count; index++)
+        {
+            var cell = result.SolutionCells[index];
+            var nextCell = (index + 1 == result.SolutionCells.Count) ? null : result.SolutionCells[index + 1];
+            var tempTile = State.TileGrid[result.SolutionCells[index].X, result.SolutionCells[index].Y];
+            if (nextCell is null)
+            {
+                conveyor.ConveyorTile.Add(new() { Tile = tempTile, Direction = (0, 0) });
+                continue;
+            }
 
-        var conveyor = new Conveyor() { Tiles = result.SolutionCells.Select(x => State.TileGrid[x.X, x.Y]).ToList() };
+            var (x, y) = (cell.X - nextCell.X, cell.Y - nextCell.Y);
+            tempTile.IsPassable = false;
+            conveyor.ConveyorTile.Add(new() { Tile = tempTile, Direction = (x, y) });
+
+        }
         Conveyors.Add(conveyor);
-        foreach (var thing in conveyor.Tiles) { thing.IsPassable = false; }
 
         await PlayerPathFinding();
 
@@ -492,9 +501,16 @@ public class MainWindowViewModel : ObservableObject
     }
 }
 
+public class ConveyorTile
+{
+    public (int x, int y) Direction;
+    public Tile Tile;
+}
+
+
 public class Conveyor
 {
-    public List<Tile> Tiles { get; set; }
+    public List<ConveyorTile> ConveyorTile { get; set; } = new();
 }
 
 public class Tile
