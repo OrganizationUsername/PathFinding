@@ -18,7 +18,7 @@ public enum ClickMode { Player = 0, Conveyor = 1 }
 
 public class MainWindowViewModel : ObservableObject
 {
-    private Random rand = new Random(1);
+    private readonly Random _rand = new(1);
     public bool Paused { get; set; } = false;
     public string HoveredEntityDescription { get => _hoveredEntityDescription; set => SetProperty(ref _hoveredEntityDescription, value); }
     public WriteableBitmap Wb { get => _wb; set => SetProperty(ref _wb, value); }
@@ -374,7 +374,7 @@ public class MainWindowViewModel : ObservableObject
         return State.TileGrid[xThing, yThing];
     }
 
-    public void FlipElementSourceDestination(Point? point)
+    public async void FlipElementSourceDestination(Point? point)
     {
         //Stopwatch sw = new Stopwatch(); //2 ms
         //sw.Start();
@@ -384,72 +384,87 @@ public class MainWindowViewModel : ObservableObject
         switch (ClickMode)
         {
             case ClickMode.Player:
-                HandleRightClickPlayerMode(tile);
+                await HandleRightClickPlayerMode(tile);
                 break;
             case ClickMode.Conveyor:
-                HandleRightClickAddConveyorNode(tile);
+                await HandleRightClickAddConveyorNode(tile);
                 break;
             default:
                 throw new ArgumentOutOfRangeException();
         }
     }
 
-    private async void HandleRightClickAddConveyorNode(Tile tile)
+    private async Task HandleRightClickAddConveyorNode(Tile tile)
     {
-        //ToDo: I also need a way to make a conveyor land on another conveyor. 
-
-        //ToDo: Here, I should make sure that it is either IsPassable or it lands on another conveyor.
-        if (SelectedConveyorTile is null && tile.IsPassable) { SelectedConveyorTile = tile; return; }
-        if (!tile.IsPassable) return;
-
-        //ToDo: This is messed up
-        var result = await PathFinding(SelectedConveyorTile, tile, false, DateTime.Now);
-        SelectedConveyorTile = null;
-        if (result.SolutionCells is null) return;
-        var conveyor = new Conveyor() { Id = Conveyors.Count + 1 };
-        //ToDo: I should go through this in reverse.
-        for (var index = 0; index < result.SolutionCells.Count; index++)
         {
-            var cell = result.SolutionCells[index];
-            var nextCell = (index + 1 == result.SolutionCells.Count) ? null : result.SolutionCells[index + 1];
-            var tempTile = State.TileGrid[result.SolutionCells[index].X, result.SolutionCells[index].Y];
-            if (nextCell is null)
+            //ToDo: I also need a way to make a conveyor land on another conveyor. 
+
+            //ToDo: Here, I should make sure that it is either IsPassable or it lands on another conveyor.
+            if (SelectedConveyorTile is null && tile.IsPassable)
             {
-                conveyor.ConveyorTile.Add(new() { Tile = tempTile, Direction = (0, 0) });
-                continue;
+                SelectedConveyorTile = tile;
+                return;
             }
 
-            var (x, y) = (cell.X - nextCell.X, cell.Y - nextCell.Y);
-            tempTile.IsPassable = false;
-            tempTile.TileRole = TileRole.Conveyor;
-            conveyor.ConveyorTile.Add(new() { Tile = tempTile, Direction = (x, y), Conveyor = conveyor });
-        }
+            if (!tile.IsPassable) return;
 
-        for (var index = 0; index < conveyor.ConveyorTile.Count; index++)
-        {
-            var conveyorTile = conveyor.ConveyorTile[index];
-            var nextConveyorTile = (index + 1 == conveyor.ConveyorTile.Count) ? null : conveyor.ConveyorTile[index + 1];
-            conveyorTile.NextConveyorTile = nextConveyorTile;
-        }
-
-        Conveyors.Add(conveyor);
-
-        //ToDo: Separate this to another method. 
-        for (var index = 0; index < Conveyors.Count; index++)
-        {
-            var conv = Conveyors[index];
-            var tempTile = conv.ConveyorTile.Last();
-            if (tempTile.NextConveyorTile is not null) continue;
-
-            for (var i = 0; i < Conveyors.Count; i++)
+            //ToDo: This is messed up
+            var result = await PathFinding(SelectedConveyorTile, tile, false, DateTime.Now);
+            SelectedConveyorTile = null;
+            if (result.SolutionCells is null) return;
+            var conveyor = new Conveyor() { Id = Conveyors.Count + 1 };
+            //ToDo: I should go through this in reverse.
+            for (var index = 0; index < result.SolutionCells.Count; index++)
             {
-                var convMaster = Conveyors[i];
-                var matchingTile = convMaster.ConveyorTile.FirstOrDefault(t => t.Tile.X == tempTile.Tile.X && t.Tile.Y == tempTile.Tile.Y);
-                if (matchingTile is null) continue;
-                tempTile.NextConveyorTile = matchingTile;
+                var cell = result.SolutionCells[index];
+                var nextCell = (index + 1 == result.SolutionCells.Count) ? null : result.SolutionCells[index + 1];
+                var tempTile = State.TileGrid[result.SolutionCells[index].X, result.SolutionCells[index].Y];
+                if (nextCell is null)
+                {
+                    conveyor.ConveyorTile.Add(new() { Tile = tempTile, Direction = (0, 0) });
+                    continue;
+                }
+
+                var (x, y) = (cell.X - nextCell.X, cell.Y - nextCell.Y);
+                tempTile.IsPassable = false;
+                tempTile.TileRole = TileRole.Conveyor;
+                conveyor.ConveyorTile.Add(new() { Tile = tempTile, Direction = (x, y), Conveyor = conveyor });
+            }
+
+            for (var index = 0; index < conveyor.ConveyorTile.Count; index++)
+            {
+                var conveyorTile = conveyor.ConveyorTile[index];
+                var nextConveyorTile =
+                    (index + 1 == conveyor.ConveyorTile.Count) ? null : conveyor.ConveyorTile[index + 1];
+                conveyorTile.NextConveyorTile = nextConveyorTile;
+            }
+
+            Conveyors.Add(conveyor);
+
+            //ToDo: Separate this to another method. 
+            for (var index = 0; index < Conveyors.Count; index++)
+            {
+                var conv = Conveyors[index];
+
+                var masterTile = conv.ConveyorTile[^1];
+                if (masterTile.NextConveyorTile is not null) continue;
+
+                for (var i = 0; i < Conveyors.Count; i++)
+                {
+                    if (i == index) continue;
+                    var convSlave = Conveyors[i];
+                    var slaveTile = convSlave.ConveyorTile.FirstOrDefault(t =>
+                        t.Tile.X == masterTile.Tile.X && t.Tile.Y == masterTile.Tile.Y);
+                    if (slaveTile is null) continue;
+                    masterTile.NextConveyorTile = slaveTile;
+                    masterTile.Direction = slaveTile.Direction;
+                }
             }
         }
-
+        foreach (var conveyor in Conveyors)
+        {
+            Trace.WriteLine($"ConveyorID: {conveyor.Id}" + string.Join("=> ", conveyor.ConveyorTile.Select(x => $"({x.Tile.X},{x.Tile.Y}) to ({x.NextConveyorTile?.Tile.X:-1},{x.NextConveyorTile?.Tile.Y:-1})")));
+        }
 
         await PlayerPathFinding();
 
@@ -481,9 +496,7 @@ public class MainWindowViewModel : ObservableObject
         */
     }
 
-
-
-    private async void HandleRightClickPlayerMode(Tile tile)
+    private async Task HandleRightClickPlayerMode(Tile tile)
     {
         //ToDo: Make sure right-clicking source/destination doesn't put it in a bad state.
         var keys = PlayerDictionary.Keys.ToArray();
@@ -549,13 +562,13 @@ public class MainWindowViewModel : ObservableObject
 
     public void RandomlyAddItem()
     {
-        if (!Conveyors.Any() || rand.NextDouble() > 0.1) { return; }
+        if (!Conveyors.Any() || _rand.NextDouble() > 0.1) { return; }
 
-        var conveyorIndex = rand.Next(0, 0);// Conveyors.Count);
+        var conveyorIndex = _rand.Next(0, 0);// Conveyors.Count);
         var conveyor = Conveyors[conveyorIndex];
         var conveyorTile = conveyor.ConveyorTile.First();
         if (conveyorTile.Items.Any()) return;
-        var item = new Item() { X = rand.Next(0, MaxCellNumber), Y = rand.Next(0, MaxCellNumber), ConveyorTile = conveyorTile };
+        var item = new Item() { X = _rand.Next(0, MaxCellNumber), Y = _rand.Next(0, MaxCellNumber), ConveyorTile = conveyorTile };
         conveyorTile.Items.Add(item);
         conveyor.Items.Add(item);
         Items.Add(item);
@@ -563,6 +576,7 @@ public class MainWindowViewModel : ObservableObject
 
     public void Movement()
     {
+        //ToDo: Think about how this will be performed without GUI
         //ToDo: Actually I need to go through items according to who is furthest down the line so I can account for collisions.
         //Maybe it would be the segment * 10 + (_maxCellNumber * the tile direction (if x=3 and direction = (1,3), then it's the first that would be checked.). I'd look at highest first.
         //ToDo: What if I kept the left and right hand sides separate? Just have to define left/right side of conveyor.
@@ -573,7 +587,7 @@ public class MainWindowViewModel : ObservableObject
             item.Y -= item.ConveyorTile.Direction.y;
 
             ConveyorTile nextConveyor = item.ConveyorTile.NextConveyorTile;
-            if (item.ConveyorTile.NextConveyorTile is null)
+            if (item.ConveyorTile.Direction.x + item.ConveyorTile.Direction.y == 0)
             {
                 DeleteItem(item);
                 continue;
@@ -582,8 +596,6 @@ public class MainWindowViewModel : ObservableObject
             //ToDo: I can replace almost all of this logic by holding NextConveyor tile in ConveyorTile
             var conveyor = item.ConveyorTile.Conveyor;
             var currentConveyorTile = item.ConveyorTile;
-      
-
 
             if (item.X < 0)
             {
@@ -632,6 +644,7 @@ public class MainWindowViewModel : ObservableObject
     {
         Items.Remove(item);
         item.ConveyorTile.Items.Remove(item);
+        item = null;
     }
 
 }

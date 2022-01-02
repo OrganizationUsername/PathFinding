@@ -37,7 +37,7 @@ public partial class MainWindow
     private readonly List<Color> _metroColors;
     private readonly Dictionary<Key, int> _numberKeys;
     private readonly Dictionary<Key, (int X, int Y)> _movementKeys;
-    public List<Key> LastPressedKeys = new List<Key>();
+    public List<Key> LastPressedKeys = new();
 
     public MainWindow()
     {
@@ -137,7 +137,7 @@ public partial class MainWindow
             {
                 var leftPixel = tile.X * TileSize + partialTile * item.X;
                 var topPixel = tile.Y * TileSize + partialTile * item.Y;
-                Wb.FillRectangle(leftPixel - LeftX, topPixel - TopY, leftPixel + partialTile - LeftX, topPixel + partialTile - TopY, Colors.Brown);
+                Wb.FillRectangle(leftPixel - LeftX, topPixel - TopY, leftPixel + partialTile - LeftX, topPixel + partialTile - TopY, Colors.SaddleBrown);
             }
         }
 
