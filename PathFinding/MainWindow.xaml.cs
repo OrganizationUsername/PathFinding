@@ -129,15 +129,15 @@ public partial class MainWindow
             }
         }
 
-
+        var partialTile = TileSize / Vm.MaxCellNumber;
         foreach (var item in Vm.Items)
         {
             var tile = item.ConveyorTile.Tile;
             if (tile.X > minX && tile.X <= maxX && tile.Y > minY && tile.Y <= maxY)
             {
-                var leftPixel = tile.X * TileSize + TileSize / 3 * item.X;
-                var topPixel = tile.Y * TileSize + TileSize / 3 * item.Y;
-                Wb.FillRectangle(leftPixel - LeftX, topPixel - TopY, leftPixel + TileSize / 3 - LeftX, topPixel + TileSize / 3 - TopY, Colors.Brown);
+                var leftPixel = tile.X * TileSize + partialTile * item.X;
+                var topPixel = tile.Y * TileSize + partialTile * item.Y;
+                Wb.FillRectangle(leftPixel - LeftX, topPixel - TopY, leftPixel + partialTile - LeftX, topPixel + partialTile - TopY, Colors.Brown);
             }
         }
 
