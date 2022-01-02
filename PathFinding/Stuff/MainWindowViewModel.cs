@@ -62,6 +62,8 @@ public class MainWindowViewModel : ObservableObject
     public List<Conveyor> Conveyors { get; set; } = new();
     public List<Item> Items { get; set; } = new();
     private int TickCounter = 0;
+    private readonly int _maxCellNumber = 3;
+
 
     public RelayCommand ResetCommand { get; set; }
 
@@ -396,11 +398,14 @@ public class MainWindowViewModel : ObservableObject
     {
         //ToDo: I also need a way to make a conveyor land on another conveyor. 
 
-        if (SelectedConveyorTile is null) { SelectedConveyorTile = tile; return; }
+        if (SelectedConveyorTile is null && tile.IsPassable) { SelectedConveyorTile = tile; return; }
+        if (!tile.IsPassable) return;
 
         var result = await PathFinding(SelectedConveyorTile, tile, false, DateTime.Now);
         SelectedConveyorTile = null;
+        if (result.SolutionCells is null) return;
         var conveyor = new Conveyor();
+        //ToDo: I should go through this in reverse.
         for (var index = 0; index < result.SolutionCells.Count; index++)
         {
             var cell = result.SolutionCells[index];
@@ -502,9 +507,9 @@ public class MainWindowViewModel : ObservableObject
     public async Task Tick(Point? point, bool leftClicked)
     {
         GetHoverElements(point);
-        RandomItems();
         if (!Paused)
         {
+            RandomlyAddItem();
             TickCounter++;
             if (TickCounter >= 5)
             {
@@ -516,20 +521,25 @@ public class MainWindowViewModel : ObservableObject
         else { AlreadyClicked.Clear(); }
     }
 
-    public void RandomItems()
+    public void RandomlyAddItem()
     {
         if (!Conveyors.Any() || rand.NextDouble() > 0.1) { return; }
 
         var conveyorIndex = rand.Next(0, Conveyors.Count);
-        var conveyorTile = Conveyors[conveyorIndex].ConveyorTile.First();
+        var conveyor = Conveyors[conveyorIndex];
+        var conveyorTile = conveyor.ConveyorTile.First();
         if (conveyorTile.Items.Any()) return;
-        var item = new Item() { X = rand.Next(0, 2), Y = rand.Next(0, 2), ConveyorTile = conveyorTile };
+        var item = new Item() { X = rand.Next(0, _maxCellNumber), Y = rand.Next(0, _maxCellNumber), ConveyorTile = conveyorTile };
         conveyorTile.Items.Add(item);
+        conveyor.Items.Add(item);
         Items.Add(item);
     }
 
     public void Movement()
     {
+        //ToDo: Actually I need to go through items according to who is furthest down the line so I can account for collisions.
+        //Maybe it would be the segment * 10 + (_maxCellNumber * the tile direction (if x=3 and direction = (1,3), then it's the first that would be checked.). I'd look at highest first.
+        //ToDo: What if I kept the left and right hand sides separate? Just have to define left/right side of conveyor.
         for (var index = 0; index < Items.Count; index++)
         {
             var item = Items[index];
@@ -542,6 +552,8 @@ public class MainWindowViewModel : ObservableObject
                 DeleteItem(item);
                 continue;
             }
+
+            //ToDo: I can replace almost all of this logic by holding NextConveyor tile in ConveyorTile
             var conveyorTileIndex = item.ConveyorTile.Conveyor.ConveyorTile.IndexOf(item.ConveyorTile);
             var conveyor = item.ConveyorTile.Conveyor;
             var currentConveyorTile = item.ConveyorTile;
@@ -552,11 +564,8 @@ public class MainWindowViewModel : ObservableObject
                 item = null;
                 continue;
             }
-            else
-            {
-                nextConveyor = item.ConveyorTile.Conveyor.ConveyorTile[conveyorTileIndex + 1];
-            }
 
+            nextConveyor = item.ConveyorTile.Conveyor.ConveyorTile[conveyorTileIndex + 1];
 
             if (item.X < 0)
             {
@@ -564,11 +573,11 @@ public class MainWindowViewModel : ObservableObject
                 currentConveyorTile.Items.Remove(item);
                 item.ConveyorTile = nextConveyor;
                 nextConveyor.Items.Add(item);
-                item.X = 2;
+                item.X = _maxCellNumber - 1;
                 continue;
             }
 
-            if (item.X > 2)
+            if (item.X > _maxCellNumber)
             {
                 if (nextConveyor is null) { DeleteItem(item); continue; }
                 currentConveyorTile.Items.Remove(item);
@@ -584,11 +593,11 @@ public class MainWindowViewModel : ObservableObject
                 currentConveyorTile.Items.Remove(item);
                 item.ConveyorTile = nextConveyor;
                 nextConveyor.Items.Add(item);
-                item.Y = 2;
+                item.Y = _maxCellNumber - 1;
                 continue;
             }
 
-            if (item.Y > 2)
+            if (item.Y > _maxCellNumber)
             {
                 if (nextConveyor is null) { DeleteItem(item); continue; }
                 currentConveyorTile.Items.Remove(item);
@@ -603,14 +612,15 @@ public class MainWindowViewModel : ObservableObject
 
     public void DeleteItem(Item item)
     {
+        Items.Remove(item);
         item.ConveyorTile.Items.Remove(item);
-        item = null;
     }
 
 }
 
 public class Item
 {
+    //ToDo: Maybe this should also have the last velocity so it can continue to go to the left/right side of conveyor
     public int X;
     public int Y;
     public ConveyorTile ConveyorTile;
@@ -622,6 +632,7 @@ public class ConveyorTile
     public Tile Tile;
     public List<Item> Items = new();
     public Conveyor Conveyor;
+    public ConveyorTile NextConveyorTile;
 }
 
 public class Conveyor
@@ -629,6 +640,7 @@ public class Conveyor
     //ToDo: I need to make it so I can serialize this so it can be saved in a map string.
     //ToDo: Since this should be part of the map string, it should also be held in State.
     public List<ConveyorTile> ConveyorTile { get; set; } = new();
+    public List<Item> Items = new();
 }
 
 public class Tile
