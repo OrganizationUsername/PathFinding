@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -17,8 +18,8 @@ public enum ClickMode { Player = 0, Conveyor = 1 }
 
 public class MainWindowViewModel : ObservableObject
 {
-    public int RandomInt { get; set; } = 0;
-    public bool Paused { get; set; } = true;
+    private Random rand = new Random(1);
+    public bool Paused { get; set; } = false;
     public string HoveredEntityDescription { get => _hoveredEntityDescription; set => SetProperty(ref _hoveredEntityDescription, value); }
     public WriteableBitmap Wb { get => _wb; set => SetProperty(ref _wb, value); }
     public State State { get; set; }
@@ -59,6 +60,8 @@ public class MainWindowViewModel : ObservableObject
     public ClickMode ClickMode { get; set; } = ClickMode.Player;
     public Tile SelectedConveyorTile { get; set; }
     public List<Conveyor> Conveyors { get; set; } = new();
+    public List<Item> Items { get; set; } = new();
+    private int TickCounter = 0;
 
     public RelayCommand ResetCommand { get; set; }
 
@@ -391,6 +394,8 @@ public class MainWindowViewModel : ObservableObject
 
     private async void HandleRightClickAddConveyorNode(Tile tile)
     {
+        //ToDo: I also need a way to make a conveyor land on another conveyor. 
+
         if (SelectedConveyorTile is null) { SelectedConveyorTile = tile; return; }
 
         var result = await PathFinding(SelectedConveyorTile, tile, false, DateTime.Now);
@@ -409,7 +414,8 @@ public class MainWindowViewModel : ObservableObject
 
             var (x, y) = (cell.X - nextCell.X, cell.Y - nextCell.Y);
             tempTile.IsPassable = false;
-            conveyor.ConveyorTile.Add(new() { Tile = tempTile, Direction = (x, y) });
+            tempTile.TileRole = TileRole.Conveyor;
+            conveyor.ConveyorTile.Add(new() { Tile = tempTile, Direction = (x, y), Conveyor = conveyor });
 
         }
         Conveyors.Add(conveyor);
@@ -496,20 +502,132 @@ public class MainWindowViewModel : ObservableObject
     public async Task Tick(Point? point, bool leftClicked)
     {
         GetHoverElements(point);
+        RandomItems();
+        if (!Paused)
+        {
+            TickCounter++;
+            if (TickCounter >= 5)
+            {
+                Movement();
+                TickCounter = 0;
+            }
+        }
         if (leftClicked) { await HandleLeftClick(point); }
         else { AlreadyClicked.Clear(); }
     }
+
+    public void RandomItems()
+    {
+        if (!Conveyors.Any() || rand.NextDouble() > 0.1) { return; }
+
+        var conveyorIndex = rand.Next(0, Conveyors.Count);
+        var conveyorTile = Conveyors[conveyorIndex].ConveyorTile.First();
+        if (conveyorTile.Items.Any()) return;
+        var item = new Item() { X = rand.Next(0, 2), Y = rand.Next(0, 2), ConveyorTile = conveyorTile };
+        conveyorTile.Items.Add(item);
+        Items.Add(item);
+    }
+
+    public void Movement()
+    {
+        for (var index = 0; index < Items.Count; index++)
+        {
+            var item = Items[index];
+            item.X -= item.ConveyorTile.Direction.x;
+            item.Y -= item.ConveyorTile.Direction.y;
+
+            ConveyorTile nextConveyor = null;
+            if (item.ConveyorTile.Conveyor is null)
+            {
+                DeleteItem(item);
+                continue;
+            }
+            var conveyorTileIndex = item.ConveyorTile.Conveyor.ConveyorTile.IndexOf(item.ConveyorTile);
+            var conveyor = item.ConveyorTile.Conveyor;
+            var currentConveyorTile = item.ConveyorTile;
+            if (conveyorTileIndex >= conveyor.ConveyorTile.Count)
+            {
+                currentConveyorTile.Items.Remove(item);
+                Items.Remove(item);
+                item = null;
+                continue;
+            }
+            else
+            {
+                nextConveyor = item.ConveyorTile.Conveyor.ConveyorTile[conveyorTileIndex + 1];
+            }
+
+
+            if (item.X < 0)
+            {
+                if (nextConveyor is null) { DeleteItem(item); continue; }
+                currentConveyorTile.Items.Remove(item);
+                item.ConveyorTile = nextConveyor;
+                nextConveyor.Items.Add(item);
+                item.X = 2;
+                continue;
+            }
+
+            if (item.X > 2)
+            {
+                if (nextConveyor is null) { DeleteItem(item); continue; }
+                currentConveyorTile.Items.Remove(item);
+                item.ConveyorTile = nextConveyor;
+                nextConveyor.Items.Add(item);
+                item.X = 0;
+                continue;
+            }
+
+            if (item.Y < 0)
+            {
+                if (nextConveyor is null) { DeleteItem(item); continue; }
+                currentConveyorTile.Items.Remove(item);
+                item.ConveyorTile = nextConveyor;
+                nextConveyor.Items.Add(item);
+                item.Y = 2;
+                continue;
+            }
+
+            if (item.Y > 2)
+            {
+                if (nextConveyor is null) { DeleteItem(item); continue; }
+                currentConveyorTile.Items.Remove(item);
+                item.ConveyorTile = nextConveyor;
+                nextConveyor.Items.Add(item);
+                item.Y = 0;
+                continue;
+            }
+
+        }
+    }
+
+    public void DeleteItem(Item item)
+    {
+        item.ConveyorTile.Items.Remove(item);
+        item = null;
+    }
+
+}
+
+public class Item
+{
+    public int X;
+    public int Y;
+    public ConveyorTile ConveyorTile;
 }
 
 public class ConveyorTile
 {
     public (int x, int y) Direction;
     public Tile Tile;
+    public List<Item> Items = new();
+    public Conveyor Conveyor;
 }
-
 
 public class Conveyor
 {
+    //ToDo: I need to make it so I can serialize this so it can be saved in a map string.
+    //ToDo: Since this should be part of the map string, it should also be held in State.
     public List<ConveyorTile> ConveyorTile { get; set; } = new();
 }
 
@@ -535,7 +653,7 @@ public class Tile
     }
 }
 
-public enum TileRole { Nothing = 0, Source = 1, Destination = 2 }
+public enum TileRole { Nothing = 0, Source = 1, Destination = 2, Conveyor = 3 }
 
 public class State
 {

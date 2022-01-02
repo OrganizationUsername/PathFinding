@@ -93,8 +93,8 @@ public partial class MainWindow
 
         var minX = Math.Max(0, LeftX / TileSize - 1);
         var minY = Math.Max(0, TopY / TileSize - 1);
-        var maxX = Math.Min(Vm.State.X, minX + Vm.PixelWidth / TileSize + 2);
-        var maxY = Math.Min(Vm.State.Y, minY + Vm.PixelHeight / TileSize + 2);
+        var maxX = Math.Min(Vm.State.X, minX + Vm.PixelWidth / TileSize + 3);
+        var maxY = Math.Min(Vm.State.Y, minY + Vm.PixelHeight / TileSize + 3);
 
         for (var x = minX; x < maxX; x++)
         {
@@ -110,6 +110,7 @@ public partial class MainWindow
                 }
                 else { color = Colors.DarkGray; }
 
+                if (tile.TileRole == TileRole.Conveyor) color = Colors.LightBlue;
                 Wb.FillRectangle(tile.X * TileSize + 1 - LeftX, tile.Y * TileSize + 1 - TopY, tile.X * TileSize + TileSize - 1 - LeftX, tile.Y * TileSize + TileSize - 1 - TopY, color);
 
                 if (tile.IsPartOfSolution) { Wb.FillEllipseCentered(tile.X * TileSize + (TileSize / 2 - LeftX), tile.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, Colors.White); }
@@ -120,8 +121,21 @@ public partial class MainWindow
                     case TileRole.Source: Wb.FillEllipseCentered(tile.X * TileSize + TileSize / 2 - LeftX, tile.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, Colors.Green); continue;
                     case TileRole.Destination: Wb.FillEllipseCentered(tile.X * TileSize + TileSize / 2 - LeftX, tile.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, Colors.Black); continue;
                     case TileRole.Nothing: break;
+                    case TileRole.Conveyor: break;
                     default: throw new ArgumentOutOfRangeException();
                 }
+            }
+        }
+
+
+        foreach (var item in Vm.Items)
+        {
+            var tile = item.ConveyorTile.Tile;
+            if (tile.X > minX && tile.X <= maxX && tile.Y > minY && tile.Y <= maxY)
+            {
+                var leftPixel = tile.X * TileSize + TileSize / 3 * item.X;
+                var topPixel = tile.Y * TileSize + TileSize / 3 * item.Y;
+                Wb.FillRectangle(leftPixel - LeftX, topPixel - TopY, leftPixel + TileSize / 3 - LeftX, topPixel + TileSize / 3 - TopY, Colors.Brown);
             }
         }
 
@@ -239,7 +253,7 @@ public partial class MainWindow
     {
         //ToDo: zoom in on the highlighted square?
         if (e.Delta > 0) /*zoom out*/ { Vm.TileSize = Math.Min(Vm.TileSize + 1, 50); }
-        else /*zoom in*/ { Vm.TileSize = Math.Max(Vm.TileSize - 1, 3); }
+        else /*zoom in*/ { Vm.TileSize = Math.Max(Vm.TileSize - 1, 5); }
 
         _clicked = false;
         Vm.LeftButtonClick = _clicked;
