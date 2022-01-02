@@ -1,0 +1,109 @@
+﻿<Window
+    x:Class="Pathfinding.WinUI.MainWindow"
+    x:Name="window"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Pathfinding.WinUI"
+    xmlns:canvas="using:Microsoft.Graphics.Canvas.UI.Xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:PathFinding.Stuff"
+    mc:Ignorable="d">
+    <Grid x:Name="rootGrid" DataContext="{x:Bind _viewModel}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition MinWidth="150" Width="auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <TabView Grid.Column="0" CanReorderTabs="False" IsAddTabButtonVisible="False" TabWidthMode="SizeToContent">
+            <TabView.TabItems>
+                <TabViewItem Header="First" IsClosable="False">
+                    <StackPanel>
+                        <TextBlock Text="{Binding HoveredEntityDescription}"/>
+                        <Button Content="FindPath" Click="FindPath"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Always Calc"/>
+                            <CheckBox IsChecked="{Binding AlwaysPath, Mode=TwoWay}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Allow Diagonal"/>
+                            <CheckBox Command="{Binding ChangeDiagonalCommand}" 
+                                      CommandParameter="{Binding IsChecked, RelativeSource={RelativeSource Mode=Self}}"
+                                      IsChecked="{Binding AllowDiagonal}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Show Numbers"/>
+                            <CheckBox IsChecked="{Binding ShowNumbers, Mode=TwoWay}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBox Text="{Binding TileString, Mode=TwoWay}" AcceptsReturn="True" Width="30" Height="18"/>
+                            <Button Content="Push to load" Click="LoadMapString"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding RandomInt, Mode=TwoWay}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Current Player: " />
+                            <TextBlock Text="{Binding CurrentPlayer, Mode=TwoWay}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="FPS: "/>
+                            <TextBlock Text="{Binding Fps, Mode=OneWay}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Tiles scored: "/>
+                            <TextBlock Text="{Binding CellsScored, Mode=TwoWay}" />
+                        </StackPanel>
+                    </StackPanel>
+                </TabViewItem>
+                <TabViewItem Header="Reset" IsClosable="False">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Width"/>
+                            <TextBox Width="50" Text="{Binding NewTileWidth, Mode=TwoWay}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Height"/>
+                            <TextBox Width="50" Text="{Binding NewTileHeight, Mode=TwoWay}"/>
+                        </StackPanel>
+                        <Button Content="Reset" Command="{Binding ResetCommand}"/>
+                    </StackPanel>
+                </TabViewItem>
+            </TabView.TabItems>
+        </TabView>
+        <Grid Grid.Column="1" x:Name="renderGrid">
+            <!-- ScrollViewer here serves only as a focusable control so that the KeyDown event fires -->
+            <ScrollViewer KeyDown="Canvas_KeyDown" IsTabStop="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled" >
+                <canvas:CanvasSwapChainPanel HorizontalAlignment="Left" VerticalAlignment="Top" Width="{Binding PixelWidth}" Height="{Binding PixelHeight}" x:Name="swapChainPanel"
+                PointerMoved="Canvas_PointerMoved" PointerExited="Canvas_PointerExited" PointerPressed="Canvas_PointerPressed"
+                PointerReleased="Canvas_PointerReleased" PointerWheelChanged="Canvas_PointerWheelChanged" />
+            </ScrollViewer>
+
+            <!--<Image
+               Height="{Binding PixelHeight}" Width="{Binding PixelWidth}" Stretch="None"
+               Panel.ZIndex="3" 
+               x:Name="TextImage"
+               MouseLeave="Image_MouseLeave" 
+               MouseMove="Image_MouseMove" 
+               MouseLeftButtonDown="UIElement_OnMouseLeftButtonDown" 
+               MouseRightButtonDown="UIElement_OnMouseRightButtonDown"
+               MouseLeftButtonUp="UIElement_OnMouseLeftButtonUp"
+               MouseWheel="TextImage_OnMouseWheel" 
+               />
+                ContextMenu="{StaticResource myMenu}" ContextMenuOpening="TextImage_ContextMenuOpening"
+                <Image Source="{Binding Wb}"
+               Height="{Binding PixelHeight}" Width="{Binding PixelWidth}" Stretch="None" 
+               Panel.ZIndex="2"
+               MouseLeave="Image_MouseLeave" 
+               MouseMove="Image_MouseMove" 
+               MouseLeftButtonDown="UIElement_OnMouseLeftButtonDown" 
+               MouseRightButtonDown="UIElement_OnMouseRightButtonDown"
+               MouseLeftButtonUp="UIElement_OnMouseLeftButtonUp"
+               MouseWheel="TextImage_OnMouseWheel"
+               x:Name="WriteableBitmapImage"
+               Focusable="True"
+                />-->
+                <!--ContextMenu="{StaticResource myMenu}" ContextMenuOpening="TextImage_ContextMenuOpening"-->
+        </Grid>
+    </Grid>
+</Window>
