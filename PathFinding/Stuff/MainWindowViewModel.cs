@@ -434,8 +434,7 @@ public class MainWindowViewModel : ObservableObject
             for (var index = 0; index < conveyor.ConveyorTile.Count; index++)
             {
                 var conveyorTile = conveyor.ConveyorTile[index];
-                var nextConveyorTile =
-                    (index + 1 == conveyor.ConveyorTile.Count) ? null : conveyor.ConveyorTile[index + 1];
+                var nextConveyorTile = (index + 1 == conveyor.ConveyorTile.Count) ? null : conveyor.ConveyorTile[index + 1];
                 conveyorTile.NextConveyorTile = nextConveyorTile;
             }
 
@@ -445,7 +444,6 @@ public class MainWindowViewModel : ObservableObject
             for (var index = 0; index < Conveyors.Count; index++)
             {
                 var conv = Conveyors[index];
-
                 var masterTile = conv.ConveyorTile[^1];
                 if (masterTile.NextConveyorTile is not null) continue;
 
@@ -453,8 +451,7 @@ public class MainWindowViewModel : ObservableObject
                 {
                     if (i == index) continue;
                     var convSlave = Conveyors[i];
-                    var slaveTile = convSlave.ConveyorTile.FirstOrDefault(t =>
-                        t.Tile.X == masterTile.Tile.X && t.Tile.Y == masterTile.Tile.Y);
+                    var slaveTile = convSlave.ConveyorTile.FirstOrDefault(t => t.Tile.X == masterTile.Tile.X && t.Tile.Y == masterTile.Tile.Y);
                     if (slaveTile is null) continue;
                     masterTile.NextConveyorTile = slaveTile;
                     masterTile.Direction = slaveTile.Direction;
@@ -463,13 +460,11 @@ public class MainWindowViewModel : ObservableObject
         }
         foreach (var conveyor in Conveyors)
         {
+            //I suck at debug with nulls.
             Trace.WriteLine($"ConveyorID: {conveyor.Id}" + string.Join("=> ", conveyor.ConveyorTile.Select(x => $"({x.Tile.X},{x.Tile.Y}) to ({x.NextConveyorTile?.Tile.X:-1},{x.NextConveyorTile?.Tile.Y:-1})")));
         }
 
         await PlayerPathFinding();
-
-
-
 
         /*
         https://enzisoft.wordpress.com/2016/03/12/factorio-in-unityc-goal-reached/ 
@@ -564,7 +559,7 @@ public class MainWindowViewModel : ObservableObject
     {
         if (!Conveyors.Any() || _rand.NextDouble() > 0.1) { return; }
 
-        var conveyorIndex = _rand.Next(0, 0);// Conveyors.Count);
+        var conveyorIndex = _rand.Next(0,  Conveyors.Count);
         var conveyor = Conveyors[conveyorIndex];
         var conveyorTile = conveyor.ConveyorTile.First();
         if (conveyorTile.Items.Any()) return;
