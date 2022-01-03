@@ -14,3 +14,5 @@ Paths may be found.
 - maybe provide a legend for the different funny graphic things.
 - Make conveyor belts better.
 - Write some instructions
+- Thin walls
+- Undo/Redo
