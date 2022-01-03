@@ -88,6 +88,59 @@ public class MainWindowViewModel : ObservableObject
         UploadMapString(@"3972_G4MPKI6UrMG9OgaGZmcAmLpKbFnWit9TRq0AVogGrRYWkQKSyyR9MuH9AenBv5sSeR+axQ4OHRwOESlSJAS5Z9t9tbIp5bwH/db7lgtKvQ3fH/yDCwonLSau8Y5aty1SCrbmxv20+I7bysl9AkepUN0bb8SGsANKLOiJCCOVU9u/PdYBet5gBsp6XKAeo8WuNkoNM9i8x35DUGYmR2HshCll3M4bPrVsPmGmOrfbSlJsVi5AcEMLzgbP00rTOd1HKeRUSX4C8L9Z9J5BfOKtSR8zs44M8O4CnJ34LyKDi1+JtWLy3HcqERkmHi4KuYeEAVZOkn7jlh3Ids0oomZVmhr0uiun2U/QT+4nJNkSyHAzQT3YYiIzDiVYB7yJesuCYk2e3Df2H0LT9zIwdRrIDAGbymDcWdFEvewh74DIswbs9HJiTy4feNxBJYXpdsockTBZH82r/DHk/7rdEm5CteuHA4xBLV4z55I+3SfLdkRAOvlY8Pk2kj0A");
     }
 
+    public async Task Tick(Point? point, bool leftClicked)
+    {
+        GetHoverElements(point);
+        if (!Paused)
+        {
+            RandomlyAddItem();
+            _tickCounter++;
+            if (_tickCounter >= 5)
+            {
+                Movement();
+                _tickCounter = 0;
+            }
+        }
+        if (leftClicked) { await HandleLeftClick(point); }
+        else { AlreadyClicked.Clear(); }
+    }
+
+    public async Task HandleLeftClick(Point? point)
+    {
+        if (!point.HasValue) return;
+        var tile = GetTileAtLocation(point);
+        if (tile is null) return;
+        switch (ClickMode)
+        {
+            case ClickMode.Player:
+                await TryFlipElement(tile); return;
+            case ClickMode.Conveyor:
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+    }
+
+    public async void HandleRightClick(Point? point)
+    {
+        //Stopwatch sw = new Stopwatch(); //2 ms
+        //sw.Start();
+        if (!point.HasValue) return;
+        var tile = GetTileAtLocation(point);
+        if (tile is null) return;
+        switch (ClickMode)
+        {
+            case ClickMode.Player:
+                await HandleRightClickPlayerMode(tile);
+                break;
+            case ClickMode.Conveyor:
+                await HandleRightClickAddConveyorNode(tile);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+    }
+
     public void Reset()
     {
         if (int.TryParse(NewTileWidth, out var tileWidth) && tileWidth > 10 && int.TryParse(NewTileHeight, out var tileHeight) && tileHeight > 10)
@@ -115,10 +168,7 @@ public class MainWindowViewModel : ObservableObject
         {
             lineNumber++;
             var row = mapStringResult.mapStringArray[lineNumber];
-            for (var y = 0; y < mapStringResult.Y; y++)
-            {
-                State.TileGrid[x, y].IsPassable = row[y] == '0';
-            }
+            for (var y = 0; y < mapStringResult.Y; y++) { State.TileGrid[x, y].IsPassable = row[y] == '0'; }
         }
 
         TileWidth = State.X;
@@ -145,7 +195,7 @@ public class MainWindowViewModel : ObservableObject
 
         var cells = new Cell[State.X, State.Y];
 
-        (destCell, sourceCell) = PlayerStateTiles(destination, source, destCell, cells, sourceCell);
+        (destCell, sourceCell) = GetStateCells(destination, source, destCell, cells, sourceCell);
         if (forceWalkable) { destCell.Passable = true; sourceCell.Passable = true; }
 
         //Not really useful at the moment.
@@ -156,7 +206,7 @@ public class MainWindowViewModel : ObservableObject
         return solution;
     }
 
-    private (Cell destCell, Cell sourceCell) PlayerStateTiles(Tile destination, Tile source, Cell destCell, Cell[,] cells, Cell sourceCell)
+    private (Cell destCell, Cell sourceCell) GetStateCells(Tile destination, Tile source, Cell destCell, Cell[,] cells, Cell sourceCell)
     {
         foreach (var t in State.Tiles)
         {
@@ -248,25 +298,25 @@ public class MainWindowViewModel : ObservableObject
 
     private async Task InvalidateDisconnectedCellsInChunks(List<Cell[,]> superCells, int chunkSize, DateTime thisDate)
     {
-        foreach (var supercell in superCells)
+        foreach (var superCell in superCells)
         {
             var tempCellGrid = new Cell[chunkSize + 1, chunkSize + 1];
-            var initialCell = supercell[0, 0];
+            var initialCell = superCell[0, 0];
             for (var a = 0; a < chunkSize; a++)
             {
                 for (var b = 0; b < chunkSize; b++)
                 {
-                    if (supercell[a, b] is null) continue;
+                    if (superCell[a, b] is null) continue;
                     tempCellGrid[a, b] = new()
                     {
                         Finished = false,
-                        GScore = supercell[a, b].GScore,
-                        Id = supercell[a, b].Id,
-                        X = supercell[a, b].X % chunkSize,
-                        Y = supercell[a, b].Y % chunkSize,
-                        HScore = supercell[a, b].HScore,
-                        Passable = supercell[a, b].Passable,
-                        Destinations = new() { supercell[a, b] }
+                        GScore = superCell[a, b].GScore,
+                        Id = superCell[a, b].Id,
+                        X = superCell[a, b].X % chunkSize,
+                        Y = superCell[a, b].Y % chunkSize,
+                        HScore = superCell[a, b].HScore,
+                        Passable = superCell[a, b].Passable,
+                        Destinations = new() { superCell[a, b] }
                     };
                 }
             }
@@ -276,7 +326,7 @@ public class MainWindowViewModel : ObservableObject
             {
                 for (var b = 0; b < chunkSize; b++)
                 {
-                    if (supercell[a, b] is null || !supercell[a, b].Passable) continue;
+                    if (superCell[a, b] is null || !superCell[a, b].Passable) continue;
                     initialCell = tempCellGrid[a, b];
                     tempInitial = initialCell.Destinations.First();
                     //Trace.WriteLine($"Initial at: {tempInitial.X}, {tempInitial.Y}");
@@ -335,25 +385,10 @@ public class MainWindowViewModel : ObservableObject
         }
     }
 
-    public async Task HandleLeftClick(Point? point)
-    {
-        if (!point.HasValue) return;
-        var tile = GetTileAtLocation(point);
-        if (tile is null) return;
-        switch (ClickMode)
-        {
-            case ClickMode.Player:
-                await TryFlipElement(tile); return;
-            case ClickMode.Conveyor:
-                break;
-            default:
-                throw new ArgumentOutOfRangeException();
-        }
-    }
-
     private async Task TryFlipElement(Tile tile)
     {
         if (AlreadyClicked.Any(t => t.Id == tile.Id)) return;
+        if (tile.TileRole == TileRole.Conveyor) return;
         tile.IsPassable = !tile.IsPassable;
         if (!tile.IsPassable)
         {
@@ -383,26 +418,6 @@ public class MainWindowViewModel : ObservableObject
         return State.TileGrid[xThing, yThing];
     }
 
-    public async void FlipElementSourceDestination(Point? point)
-    {
-        //Stopwatch sw = new Stopwatch(); //2 ms
-        //sw.Start();
-        if (!point.HasValue) return;
-        var tile = GetTileAtLocation(point);
-        if (tile is null) return;
-        switch (ClickMode)
-        {
-            case ClickMode.Player:
-                await HandleRightClickPlayerMode(tile);
-                break;
-            case ClickMode.Conveyor:
-                await HandleRightClickAddConveyorNode(tile);
-                break;
-            default:
-                throw new ArgumentOutOfRangeException();
-        }
-    }
-
     private async Task HandleRightClickAddConveyorNode(Tile tile)
     {
         //ToDo: I also need a way to make a conveyor land on another conveyor. 
@@ -420,8 +435,6 @@ public class MainWindowViewModel : ObservableObject
         var result = await PathFinding(SelectedConveyorTile, tile, false, DateTime.Now, true);
         if (result.SolutionCells is null) return;
         var conveyor = new Conveyor() { Id = Conveyors.Count + 1 };
-
-        //result.SolutionCells.Add(new() { X = SelectedConveyorTile.X, Y = SelectedConveyorTile.Y });
 
         SelectedConveyorTile = null;
 
@@ -547,26 +560,9 @@ public class MainWindowViewModel : ObservableObject
 
     }
 
-    public async Task Tick(Point? point, bool leftClicked)
-    {
-        GetHoverElements(point);
-        if (!Paused)
-        {
-            RandomlyAddItem();
-            _tickCounter++;
-            if (_tickCounter >= 5)
-            {
-                Movement();
-                _tickCounter = 0;
-            }
-        }
-        if (leftClicked) { await HandleLeftClick(point); }
-        else { AlreadyClicked.Clear(); }
-    }
-
     public void RandomlyAddItem()
     {
-        if (!Conveyors.Any() || Items.Count > 100 || _rand.NextDouble() > 0.5) { return; }
+        if (!Conveyors.Any() || Items.Count > 10 || _rand.NextDouble() > 0.5) { return; }
 
         var conveyorIndex = _rand.Next(0, Conveyors.Count);
         var conveyor = Conveyors[conveyorIndex];

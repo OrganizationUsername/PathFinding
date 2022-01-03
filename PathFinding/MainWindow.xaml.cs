@@ -249,7 +249,7 @@ public partial class MainWindow
         await Vm.HandleLeftClick(point);
     }
 
-    private void UIElement_OnMouseRightButtonDown(object sender, MouseButtonEventArgs e) => Vm.FlipElementSourceDestination(e.GetPosition(sender as Image));
+    private void UIElement_OnMouseRightButtonDown(object sender, MouseButtonEventArgs e) => Vm.HandleRightClick(e.GetPosition(sender as Image));
 
     private void TextImage_OnMouseWheel(object sender, MouseWheelEventArgs e)
     {
