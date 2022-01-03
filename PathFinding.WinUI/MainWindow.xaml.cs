@@ -101,8 +101,8 @@ public sealed partial class MainWindow : Window
 
     private CanvasGeometry[] CreateConveyorTriangles()
     {
-        int a = 15;
-        int b = 30;
+        int a = 5;
+        int b = 10;
 
         return new CanvasGeometry[]
         {
