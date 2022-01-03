@@ -16,3 +16,4 @@ Paths may be found.
 - Write some instructions
 - Thin walls
 - Undo/Redo
+- Show which click mode the user is in. Maybe allow them to click to the click mode they want to be in.
