@@ -1,18 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PathFinding.Core;
-using PathFinding.Annotations;
 using PathFinding.Persistence;
-using PathFinding.Models;
-
+using PathFinding.Shared.Models;
 using Point = System.Numerics.Vector2;
 
-namespace PathFinding.ViewModels;
+namespace PathFinding.Shared.ViewModels;
 
 public enum ClickMode { Player = 0, Conveyor = 1 }
 
@@ -57,7 +51,7 @@ public class MainWindowViewModel : ObservableObject
     public List<Conveyor> Conveyors { get; set; } = new();
     public List<Item> Items { get; set; } = new();
     public int ItemsCount => Items.Count;
-    private int _tickCounter = 0;
+    private int _tickCounter;
     public readonly int MaxCellNumber = 3;
 
     public RelayCommand ResetCommand { get; set; }
@@ -86,7 +80,6 @@ public class MainWindowViewModel : ObservableObject
             AllowDiagonal = x;
             await PlayerPathFinding();
         });
-
         SetupMapString();
         UploadMapString(@"3972_G4MPKI6UrMG9OgaGZmcAmLpKbFnWit9TRq0AVogGrRYWkQKSyyR9MuH9AenBv5sSeR+axQ4OHRwOESlSJAS5Z9t9tbIp5bwH/db7lgtKvQ3fH/yDCwonLSau8Y5aty1SCrbmxv20+I7bysl9AkepUN0bb8SGsANKLOiJCCOVU9u/PdYBet5gBsp6XKAeo8WuNkoNM9i8x35DUGYmR2HshCll3M4bPrVsPmGmOrfbSlJsVi5AcEMLzgbP00rTOd1HKeRUSX4C8L9Z9J5BfOKtSR8zs44M8O4CnJ34LyKDi1+JtWLy3HcqERkmHi4KuYeEAVZOkn7jlh3Ids0oomZVmhr0uiun2U/QT+4nJNkSyHAzQT3YYiIzDiVYB7yJesuCYk2e3Df2H0LT9zIwdRrIDAGbymDcWdFEvewh74DIswbs9HJiTy4feNxBJYXpdsockTBZH82r/DHk/7rdEm5CteuHA4xBLV4z55I+3SfLdkRAOvlY8Pk2kj0A");
     }
@@ -221,12 +214,10 @@ public class MainWindowViewModel : ObservableObject
                 Id = t.Id,
                 Passable = t.IsPassable
             };
-
             if (t == destination) { destCell = cell; }
             if (t == source) { sourceCell = cell; }
             cells[t.X, t.Y] = cell;
         }
-
         return (destCell, sourceCell);
     }
 
@@ -260,130 +251,6 @@ public class MainWindowViewModel : ObservableObject
         }
     }
 
-    [UsedImplicitly]
-    private async Task Chunking(Cell[,] cells, DateTime thisDate)
-    {
-        var chunkSize = 8;
-        var superCells = new List<Cell[,]>();
-        var xChunks = TileWidth / chunkSize + 1;
-        var yChunks = TileHeight / chunkSize + 1;
-        //Just throw every tile into a chunk according to location
-
-        SetChunksByGeometry(xChunks, yChunks, chunkSize, cells, superCells, out var chunkId);
-        //Let's make sure that all of the cells in each chunk can reach all of the cells.
-
-        await InvalidateDisconnectedCellsInChunks(superCells, chunkSize, thisDate);
-
-        //let's go through all of the Chunk== -1 ones 
-
-        foreach (var cell in cells)
-        {
-            if (cell.ChunkId == -1)
-            {
-            }
-        }
-
-
-        var color = 0;
-        foreach (var supercell in superCells)
-        {
-            color++;
-            foreach (var cell in supercell)
-            {
-                if (cell is null || State.TileGrid[cell.X, cell.Y] is null) continue;
-                State.TileGrid[cell.X, cell.Y].ChunkId = cell.ChunkId;
-            }
-        }
-    }
-
-    private async Task InvalidateDisconnectedCellsInChunks(List<Cell[,]> superCells, int chunkSize, DateTime thisDate)
-    {
-        foreach (var superCell in superCells)
-        {
-            var tempCellGrid = new Cell[chunkSize + 1, chunkSize + 1];
-            var initialCell = superCell[0, 0];
-            for (var a = 0; a < chunkSize; a++)
-            {
-                for (var b = 0; b < chunkSize; b++)
-                {
-                    if (superCell[a, b] is null) continue;
-                    tempCellGrid[a, b] = new()
-                    {
-                        Finished = false,
-                        GScore = superCell[a, b].GScore,
-                        Id = superCell[a, b].Id,
-                        X = superCell[a, b].X % chunkSize,
-                        Y = superCell[a, b].Y % chunkSize,
-                        HScore = superCell[a, b].HScore,
-                        Passable = superCell[a, b].Passable,
-                        Destinations = new() { superCell[a, b] }
-                    };
-                }
-            }
-
-            Cell tempInitial = null;
-            for (var a = 0; a < chunkSize; a++) //Need to find smallest index cell that is passable
-            {
-                for (var b = 0; b < chunkSize; b++)
-                {
-                    if (superCell[a, b] is null || !superCell[a, b].Passable) continue;
-                    initialCell = tempCellGrid[a, b];
-                    tempInitial = initialCell.Destinations.First();
-                    //Trace.WriteLine($"Initial at: {tempInitial.X}, {tempInitial.Y}");
-                    goto gitInitial;
-                }
-            }
-
-        gitInitial:
-
-            for (var a = 0; a < chunkSize; a++)
-            {
-                for (var b = 0; b < chunkSize; b++)
-                {
-                    if (tempCellGrid[a, b] is null || !tempCellGrid[a, b].Passable) continue;
-                    var destinationCell = tempCellGrid[a, b];
-                    if (initialCell.Id == destinationCell.Id) continue;
-                    var result = await Solver.SolveAsync(tempCellGrid, initialCell, destinationCell, null, thisDate,
-                        AllowDiagonal);
-                    var resultCell = destinationCell.Destinations.First();
-
-                    if (result.SolutionCells is null || !result.SolutionCells.Any())
-                    {
-                        /*Trace.WriteLine($"Could not navigate from {tempInitial.X}, {tempInitial.Y} to {resultCell.X}, {resultCell.Y}");*/
-                        destinationCell.Destinations.First().ChunkId = -1;
-                    }
-                    else
-                    {
-                        /*Trace.WriteLine($"Navigated from {tempInitial.X}, {tempInitial.Y} to {resultCell.X}, {resultCell.Y} via :{string.Join(", ", result.SolutionCells.Select(c => $"({c.X},{c.Y})"))}");*/
-                    }
-                }
-            }
-        }
-    }
-
-    private void SetChunksByGeometry(int xChunks, int yChunks, int chunkSize, Cell[,] cells, List<Cell[,]> superCells, out int chunkId)
-    {
-        chunkId = -1;
-        for (var x = 0; x < xChunks; x++)
-        {
-            for (var y = 0; y < yChunks; y++)
-            {
-                chunkId++;
-                var tempChunk = new Cell[chunkSize + 1, chunkSize + 1];
-                for (var a = 0; a <= chunkSize; a++)
-                {
-                    for (var b = 0; b <= chunkSize; b++)
-                    {
-                        if (x * chunkSize + a >= TileWidth || y * chunkSize + b >= TileHeight) { continue; }
-
-                        tempChunk[a, b] = cells[x * chunkSize + a, y * chunkSize + b];
-                        cells[x * chunkSize + a, y * chunkSize + b].ChunkId = chunkId;
-                    }
-                }
-                superCells.Add(tempChunk);
-            }
-        }
-    }
 
     private async Task TryFlipElement(Tile tile)
     {
@@ -421,7 +288,6 @@ public class MainWindowViewModel : ObservableObject
     private async Task HandleRightClickAddConveyorNode(Tile tile)
     {
         //ToDo: Need to make placing conveyors better. 
-
         //ToDo: Here, I should make sure that it is either IsPassable or it lands on another conveyor.
         if (SelectedConveyorTile is null && (tile.IsPassable || tile.TileRole == TileRole.Conveyor))
         {
@@ -516,6 +382,7 @@ public class MainWindowViewModel : ObservableObject
     private async Task HandleRightClickPlayerMode(Tile tile)
     {
         //ToDo: Make sure right-clicking source/destination doesn't put it in a bad state.
+        if (tile is null) return;
         var keys = PlayerDictionary.Keys.ToArray();
         for (var index = 0; index < keys.Length; index++)
         {
@@ -557,13 +424,11 @@ public class MainWindowViewModel : ObservableObject
                 return;
             }
         }
-
     }
 
     public void RandomlyAddItem()
     {
         if (!Conveyors.Any() || Items.Count > 1000 /*|| _rand.NextDouble() > 0.9*/) { return; }
-
         var conveyorIndex = _rand.Next(0, Conveyors.Count);
         var conveyor = Conveyors[conveyorIndex];
         var conveyorTile = conveyor.ConveyorTile.First();
@@ -588,11 +453,7 @@ public class MainWindowViewModel : ObservableObject
 
             var (nextX, nextY, nextTile) = item.GetNextLocation();
 
-            if (nextTile.Direction.X + nextTile.Direction.Y == 0)
-            {
-                item.DeleteItem();
-                continue;
-            }
+            if (nextTile.Direction.X + nextTile.Direction.Y == 0) { item.DeleteItem(); continue; }
 
             var anotherItem = nextTile.Items.FirstOrDefault(i => i.X == nextX && i.Y == nextY);
             if (anotherItem is not null)

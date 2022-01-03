@@ -11,9 +11,8 @@ using System.Windows.Threading;
 using System.Numerics;
 using PathFinding.Core;
 using PathFinding.Annotations;
-using PathFinding.ViewModels;
-using PathFinding.Models;
-
+using PathFinding.Shared.Models;
+using PathFinding.Shared.ViewModels;
 using Point = System.Numerics.Vector2;
 
 namespace PathFinding;

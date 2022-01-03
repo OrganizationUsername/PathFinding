@@ -1,6 +1,6 @@
-﻿using PathFinding.ViewModels;
+﻿using PathFinding.Shared.ViewModels;
 
-namespace PathFinding.Models;
+namespace PathFinding.Shared.Models;
 
 public class Item
 {

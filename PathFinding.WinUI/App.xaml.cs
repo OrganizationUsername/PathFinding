@@ -17,7 +17,7 @@ using Windows.Foundation;
 using Windows.Foundation.Collections;
 using Microsoft.Extensions.DependencyInjection;
 using PathFinding.Persistence;
-using PathFinding.ViewModels;
+using PathFinding.Shared.ViewModels;
 
 namespace Pathfinding.WinUI;
 /// <summary>

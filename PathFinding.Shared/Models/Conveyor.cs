@@ -1,4 +1,4 @@
-﻿namespace PathFinding.Models;
+﻿namespace PathFinding.Shared.Models;
 
 public class Conveyor
 {

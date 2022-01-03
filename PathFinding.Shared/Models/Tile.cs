@@ -1,4 +1,4 @@
-﻿namespace PathFinding.Models;
+﻿namespace PathFinding.Shared.Models;
 
 public enum TileRole { Nothing = 0, Source = 1, Destination = 2, Conveyor = 3 }
 public class Tile
