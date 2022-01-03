@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -21,6 +20,7 @@ public class MainWindowViewModel : ObservableObject
     private readonly Random _rand = new(1);
     public bool Paused { get; set; } = false;
     public string HoveredEntityDescription { get => _hoveredEntityDescription; set => SetProperty(ref _hoveredEntityDescription, value); }
+    //ToDo: Wb should not be in the ViewModel. 
     public WriteableBitmap Wb { get => _wb; set => SetProperty(ref _wb, value); }
     public State State { get; set; }
     public List<Tile> EntitiesToHighlight { get; set; } = new();
@@ -29,7 +29,6 @@ public class MainWindowViewModel : ObservableObject
     private int _fps;
     private string _hoveredEntityDescription;
     private string _tileString;
-    private long _ms;
     private WriteableBitmap _wb;
 #pragma warning disable CS4014
     public bool AllowDiagonal { get => _allowDiagonal; set { _allowDiagonal = value; PlayerPathFinding(); } }
@@ -61,18 +60,20 @@ public class MainWindowViewModel : ObservableObject
     public Tile SelectedConveyorTile { get; set; }
     public List<Conveyor> Conveyors { get; set; } = new();
     public List<Item> Items { get; set; } = new();
+    public int ItemsCount => Items.Count;
     private int _tickCounter = 0;
     public readonly int MaxCellNumber = 3;
 
-
     public RelayCommand ResetCommand { get; set; }
 
-    public MainWindowViewModel(/*IStatePersistence statePersistence*/)
+    public MainWindowViewModel(long ms /*IStatePersistence statePersistence*/)
     {
         PlayerCount = 3;
 
         for (var i = 1; i <= PlayerCount; i++) { PlayerDictionary.Add(i, (null, null)); }
 
+        Item.MainWindowViewModel = this;
+        Item.MaxCellNumber = MaxCellNumber;
         PixelWidth = 600;
         PixelHeight = 600;
         TileWidth = 20;
@@ -123,8 +124,6 @@ public class MainWindowViewModel : ObservableObject
 
     public async void HandleRightClick(Point? point)
     {
-        //Stopwatch sw = new Stopwatch(); //2 ms
-        //sw.Start();
         if (!point.HasValue) return;
         var tile = GetTileAtLocation(point);
         if (tile is null) return;
@@ -228,7 +227,6 @@ public class MainWindowViewModel : ObservableObject
 
         return (destCell, sourceCell);
     }
-
 
     public async Task PlayerPathFinding()
     {
@@ -387,7 +385,7 @@ public class MainWindowViewModel : ObservableObject
 
     private async Task TryFlipElement(Tile tile)
     {
-        if (AlreadyClicked.Any(t => t.Id == tile.Id)) return;
+        if (AlreadyClicked.Any(t => t.Id == tile.Id)) return; //ToDo: This could be done with storing a dictionary better, I think.
         if (tile.TileRole == TileRole.Conveyor) return;
         tile.IsPassable = !tile.IsPassable;
         if (!tile.IsPassable)
@@ -420,7 +418,7 @@ public class MainWindowViewModel : ObservableObject
 
     private async Task HandleRightClickAddConveyorNode(Tile tile)
     {
-        //ToDo: I also need a way to make a conveyor land on another conveyor. 
+        //ToDo: Need to make placing conveyors better. 
 
         //ToDo: Here, I should make sure that it is either IsPassable or it lands on another conveyor.
         if (SelectedConveyorTile is null && (tile.IsPassable || tile.TileRole == TileRole.Conveyor))
@@ -484,7 +482,7 @@ public class MainWindowViewModel : ObservableObject
             }
         }
 
-        foreach (var co in Conveyors) { /*I suck at debug with nulls.*/ Trace.WriteLine($"ConveyorID: {co.Id}" + string.Join("=> ", co.ConveyorTile.Select(x => $"({x.Tile.X},{x.Tile.Y}) to ({x.NextConveyorTile?.Tile.X ?? -1},{x.NextConveyorTile?.Tile.Y ?? -1})"))); }
+        //foreach (var co in Conveyors) { /*I suck at debug with nulls.*/ Trace.WriteLine($"ConveyorID: {co.Id}" + string.Join("=> ", co.ConveyorTile.Select(x => $"({x.Tile.X},{x.Tile.Y}) to ({x.NextConveyorTile?.Tile.X ?? -1},{x.NextConveyorTile?.Tile.Y ?? -1})"))); }
 
         await PlayerPathFinding();
 
@@ -562,7 +560,7 @@ public class MainWindowViewModel : ObservableObject
 
     public void RandomlyAddItem()
     {
-        if (!Conveyors.Any() || Items.Count > 10 || _rand.NextDouble() > 0.5) { return; }
+        if (!Conveyors.Any() || Items.Count > 1000 /*|| _rand.NextDouble() > 0.9*/) { return; }
 
         var conveyorIndex = _rand.Next(0, Conveyors.Count);
         var conveyor = Conveyors[conveyorIndex];
@@ -572,58 +570,25 @@ public class MainWindowViewModel : ObservableObject
         conveyorTile.Items.Add(item);
         conveyor.Items.Add(item);
         Items.Add(item);
-    }
-
-    public (int projectedX, int projectedY, ConveyorTile x) GetNextLocation(Item item)
-    {
-
-        var projectedX = item.X - item.ConveyorTile.Direction.X;
-        var projectedY = item.Y - item.ConveyorTile.Direction.Y;
-
-        ConveyorTile nextConveyorTile = item.ConveyorTile;
-
-        if (projectedX < 0)
-        {
-            projectedX = MaxCellNumber - 1;
-            nextConveyorTile = item.ConveyorTile.NextConveyorTile;
-        }
-
-        if (projectedX > MaxCellNumber)
-        {
-            projectedX = 0;
-            nextConveyorTile = item.ConveyorTile.NextConveyorTile;
-        }
-
-        if (projectedY < 0)
-        {
-            projectedY = MaxCellNumber - 1;
-            nextConveyorTile = item.ConveyorTile.NextConveyorTile;
-        }
-
-        if (projectedY > MaxCellNumber)
-        {
-            projectedY = 0;
-            nextConveyorTile = item.ConveyorTile.NextConveyorTile;
-        }
-
-        return (projectedX, projectedY, nextConveyorTile);
+        OnPropertyChanged(nameof(ItemsCount));
     }
 
     public void Movement()
     {
         //ToDo: Think about how this will be performed without GUI
-        //ToDo: Actually I need to go through items according to who is furthest down the line so I can account for collisions.
+        //ToDo: Actually I need to go through items according to who is furthest down the line so I can account for collisions more effectively.
         //Maybe it would be the segment * 10 + (_maxCellNumber * the tile direction (if x=3 and direction = (1,3), then it's the first that would be checked.). I'd look at highest first.
-        //ToDo: What if I kept the left and right hand sides separate? Just have to define left/right side of conveyor.
+        //ToDo: What if I kept the left and right hand sides separate? Just have to define left/right side of each conveyorTile. If you go from one conveyor to another, left/right isn't respected.
+        //ToDo: There's some issue with interlacing conveyors.
         for (var index = 0; index < Items.Count; index++)
         {
             var item = Items[index];
 
-            var (nextX, nextY, nextTile) = GetNextLocation(item);
+            var (nextX, nextY, nextTile) = item.GetNextLocation();
 
             if (nextTile.Direction.X + nextTile.Direction.Y == 0)
             {
-                DeleteItem(item);
+                item.DeleteItem();
                 continue;
             }
 
@@ -644,22 +609,57 @@ public class MainWindowViewModel : ObservableObject
             }
         }
     }
-
-    public void DeleteItem(Item item)
-    {
-        Items.Remove(item);
-        item.ConveyorTile.Items.Remove(item);
-        item = null;
-    }
-
 }
 
 public class Item
 {
     //ToDo: Maybe this should also have the last velocity so it can continue to go to the left/right side of conveyor
+    public static MainWindowViewModel MainWindowViewModel;
+    public static int MaxCellNumber;
     public int X;
     public int Y;
     public ConveyorTile ConveyorTile;
+
+    public void DeleteItem()
+    {
+        MainWindowViewModel.Items.Remove(this);
+        ConveyorTile.Items.Remove(this);
+    }
+
+    public (int projectedX, int projectedY, ConveyorTile x) GetNextLocation()
+    {
+
+        var projectedX = X - ConveyorTile.Direction.X;
+        var projectedY = Y - ConveyorTile.Direction.Y;
+
+        var nextConveyorTile = ConveyorTile;
+
+        if (projectedX < 0)
+        {
+            projectedX = MaxCellNumber - 1;
+            nextConveyorTile = ConveyorTile.NextConveyorTile;
+        }
+
+        if (projectedX > MaxCellNumber)
+        {
+            projectedX = 0;
+            nextConveyorTile = ConveyorTile.NextConveyorTile;
+        }
+
+        if (projectedY < 0)
+        {
+            projectedY = MaxCellNumber - 1;
+            nextConveyorTile = ConveyorTile.NextConveyorTile;
+        }
+
+        if (projectedY > MaxCellNumber)
+        {
+            projectedY = 0;
+            nextConveyorTile = ConveyorTile.NextConveyorTile;
+        }
+
+        return (projectedX, projectedY, nextConveyorTile);
+    }
 }
 
 public class ConveyorTile

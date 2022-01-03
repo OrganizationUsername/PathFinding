@@ -57,6 +57,10 @@
                         <TextBlock Text="Tiles scored: "/>
                         <TextBlock Text="{Binding CellsScored}" />
                     </StackPanel>
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Bottom">
+                        <TextBlock Text="Item count: "/>
+                        <TextBlock Text="{Binding ItemsCount}" />
+                    </StackPanel>
                 </DockPanel>
             </TabItem>
             <TabItem Header="Reset">
