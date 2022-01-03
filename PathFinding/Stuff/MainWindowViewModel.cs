@@ -138,14 +138,26 @@ public class MainWindowViewModel : ObservableObject
         EntitiesToHighlight.Add(tileR);
     }
 
-
-    public async Task<(List<Cell> SolutionCells, Cell[,] AllCells, long TimeToSolve, DateTime thisDate)> PathFinding(Tile destination, Tile source, bool allowDiagonal, DateTime requestDate)
+    public async Task<(List<Cell> SolutionCells, Cell[,] AllCells, long TimeToSolve, DateTime thisDate)> PathFinding(Tile destination, Tile source, bool allowDiagonal, DateTime requestDate, bool forceWalkable = false)
     {
         Cell destCell = new() { Id = destination.Id, HScore = 0, X = destination.X, Y = destination.Y, Passable = destination.IsPassable };
         Cell sourceCell = new() { Id = source.Id, HScore = Math.Abs(source.X - destination.X) + Math.Abs(source.Y - destination.Y), X = source.X, Y = source.Y, Passable = source.IsPassable };
 
         var cells = new Cell[State.X, State.Y];
 
+        (destCell, sourceCell) = PlayerStateTiles(destination, source, destCell, cells, sourceCell);
+        if (forceWalkable) { destCell.Passable = true; sourceCell.Passable = true; }
+
+        //Not really useful at the moment.
+        //await Chunking(cells, requestDate);
+        var solution = await Solver.SolveAsync(cells, sourceCell, destCell, null, requestDate, allowDiagonal);
+        if (solution.SolutionCells is null || !solution.SolutionCells.Any()) return default;
+        Trace.WriteLine($"{solution.TimeToSolve}ms to solve ({sourceCell.X},{sourceCell.Y}) to ({destCell.X},{destCell.Y}).");
+        return solution;
+    }
+
+    private (Cell destCell, Cell sourceCell) PlayerStateTiles(Tile destination, Tile source, Cell destCell, Cell[,] cells, Cell sourceCell)
+    {
         foreach (var t in State.Tiles)
         {
             var hScore = Math.Abs(t.X - destCell.X) + Math.Abs(t.Y - destCell.Y);
@@ -158,18 +170,13 @@ public class MainWindowViewModel : ObservableObject
                 Id = t.Id,
                 Passable = t.IsPassable
             };
+
             if (t == destination) { destCell = cell; }
             if (t == source) { sourceCell = cell; }
-
             cells[t.X, t.Y] = cell;
         }
 
-        //Not really useful at the moment.
-        //await Chunking(cells, requestDate);
-        var solution = await Solver.SolveAsync(cells, sourceCell, destCell, null, requestDate, allowDiagonal);
-        if (solution.SolutionCells is null || !solution.SolutionCells.Any()) return default;
-        Trace.WriteLine($"{solution.TimeToSolve}ms to solve ({sourceCell.X},{sourceCell.Y}) to ({destCell.X},{destCell.Y}).");
-        return solution;
+        return (destCell, sourceCell);
     }
 
 
@@ -401,19 +408,22 @@ public class MainWindowViewModel : ObservableObject
         //ToDo: I also need a way to make a conveyor land on another conveyor. 
 
         //ToDo: Here, I should make sure that it is either IsPassable or it lands on another conveyor.
-        if (SelectedConveyorTile is null && tile.IsPassable)
+        if (SelectedConveyorTile is null && (tile.IsPassable || tile.TileRole == TileRole.Conveyor))
         {
             SelectedConveyorTile = tile;
             return;
         }
 
-        if (!tile.IsPassable) return;
+        if (!tile.IsPassable && tile.TileRole != TileRole.Conveyor) return;
 
         //ToDo: This is messed up
-        var result = await PathFinding(SelectedConveyorTile, tile, false, DateTime.Now);
-        SelectedConveyorTile = null;
+        var result = await PathFinding(SelectedConveyorTile, tile, false, DateTime.Now, true);
         if (result.SolutionCells is null) return;
         var conveyor = new Conveyor() { Id = Conveyors.Count + 1 };
+
+        //result.SolutionCells.Add(new() { X = SelectedConveyorTile.X, Y = SelectedConveyorTile.Y });
+
+        SelectedConveyorTile = null;
 
         //ToDo: I should go through this in reverse?
         for (var index = 0; index < result.SolutionCells.Count; index++)
@@ -461,7 +471,7 @@ public class MainWindowViewModel : ObservableObject
             }
         }
 
-        //foreach (var co in Conveyors) { /*I suck at debug with nulls.*/ Trace.WriteLine($"ConveyorID: {co.Id}" + string.Join("=> ", co.ConveyorTile.Select(x => $"({x.Tile.X},{x.Tile.Y}) to ({x.NextConveyorTile?.Tile.X ?? -1},{x.NextConveyorTile?.Tile.Y ?? -1})"))); }
+        foreach (var co in Conveyors) { /*I suck at debug with nulls.*/ Trace.WriteLine($"ConveyorID: {co.Id}" + string.Join("=> ", co.ConveyorTile.Select(x => $"({x.Tile.X},{x.Tile.Y}) to ({x.NextConveyorTile?.Tile.X ?? -1},{x.NextConveyorTile?.Tile.Y ?? -1})"))); }
 
         await PlayerPathFinding();
 
@@ -615,7 +625,7 @@ public class MainWindowViewModel : ObservableObject
 
             var (nextX, nextY, nextTile) = GetNextLocation(item);
 
-            if (nextTile is null || nextTile.Direction.X + nextTile.Direction.Y == 0)
+            if (nextTile.Direction.X + nextTile.Direction.Y == 0)
             {
                 DeleteItem(item);
                 continue;
@@ -628,9 +638,7 @@ public class MainWindowViewModel : ObservableObject
                 continue;
             }
 
-
-            item.X = nextX;
-            item.Y = nextY;
+            (item.X, item.Y) = (nextX, nextY);
 
             if (item.ConveyorTile != nextTile)
             {
@@ -638,71 +646,6 @@ public class MainWindowViewModel : ObservableObject
                 nextTile.Items.Add(item);
                 item.ConveyorTile = nextTile;
             }
-
-
-            continue;
-
-
-            //var projectedX = item.X - item.ConveyorTile.Direction.X;
-            //var projectedY = item.Y - item.ConveyorTile.Direction.Y;
-
-            ////Let's get its next position
-
-
-
-            //item.X -= item.ConveyorTile.Direction.X;
-            //item.Y -= item.ConveyorTile.Direction.Y;
-
-            //ConveyorTile nextConveyor = item.ConveyorTile.NextConveyorTile;
-            //if (item.ConveyorTile.Direction.X + item.ConveyorTile.Direction.Y == 0)
-            //{
-            //    DeleteItem(item);
-            //    continue;
-            //}
-
-            ////ToDo: I can replace almost all of this logic by holding NextConveyor tile in ConveyorTile
-            //var currentConveyorTile = item.ConveyorTile;
-
-            //if (item.X < 0)
-            //{
-            //    if (nextConveyor is null) { DeleteItem(item); continue; }
-            //    currentConveyorTile.Items.Remove(item);
-            //    item.ConveyorTile = nextConveyor;
-            //    nextConveyor.Items.Add(item);
-            //    item.X = MaxCellNumber - 1;
-            //    continue;
-            //}
-
-            //if (item.X > MaxCellNumber)
-            //{
-            //    if (nextConveyor is null) { DeleteItem(item); continue; }
-            //    currentConveyorTile.Items.Remove(item);
-            //    item.ConveyorTile = nextConveyor;
-            //    nextConveyor.Items.Add(item);
-            //    item.X = 0;
-            //    continue;
-            //}
-
-            //if (item.Y < 0)
-            //{
-            //    if (nextConveyor is null) { DeleteItem(item); continue; }
-            //    currentConveyorTile.Items.Remove(item);
-            //    item.ConveyorTile = nextConveyor;
-            //    nextConveyor.Items.Add(item);
-            //    item.Y = MaxCellNumber - 1;
-            //    continue;
-            //}
-
-            //if (item.Y > MaxCellNumber)
-            //{
-            //    if (nextConveyor is null) { DeleteItem(item); continue; }
-            //    currentConveyorTile.Items.Remove(item);
-            //    item.ConveyorTile = nextConveyor;
-            //    nextConveyor.Items.Add(item);
-            //    item.Y = 0;
-            //    continue;
-            //}
-
         }
     }
 
