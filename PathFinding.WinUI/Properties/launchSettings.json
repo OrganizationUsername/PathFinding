@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "PathFinding.WinUI (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "PathFinding.WinUI (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

@@ -3,12 +3,11 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:stuff="clr-namespace:PathFinding.Stuff"
+        xmlns:vm="clr-namespace:PathFinding.ViewModels;assembly=PathFinding.Shared"
         mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:MainWindowViewModel}"
+        x:Name="window"
         Title="MainWindow" Height="650" Width="740">
-    <Window.DataContext>
-        <stuff:MainWindowViewModel/>
-    </Window.DataContext>
     <Window.Resources>
         <ContextMenu x:Key="myMenu">
             <MenuItem Header="Item 1" Click="MenuItem_Click"></MenuItem>
@@ -16,7 +15,7 @@
             <MenuItem Header="Nothing 3"/>
         </ContextMenu>
     </Window.Resources>
-    <DockPanel >
+    <DockPanel>
         <TabControl Width="110" DockPanel.Dock="Left">
             <TabItem Header="First">
                 <DockPanel LastChildFill="False">
@@ -28,7 +27,9 @@
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Top">
                         <TextBlock Text="Allow Diagonal"/>
-                        <CheckBox IsChecked="{Binding AllowDiagonal}"/>
+                        <CheckBox Command="{Binding ChangeDiagonalCommand}" 
+                                      CommandParameter="{Binding IsChecked, RelativeSource={RelativeSource Mode=Self}}"
+                                      IsChecked="{Binding AllowDiagonal, Mode=TwoWay}"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Top">
                         <TextBlock Text="Show Numbers"/>
@@ -90,7 +91,7 @@
                MouseWheel="TextImage_OnMouseWheel" 
                />
             <!--ContextMenu="{StaticResource myMenu}" ContextMenuOpening="TextImage_ContextMenuOpening"-->
-            <Image Source="{Binding Wb}"
+            <Image Source="{Binding Wb, ElementName=window}"
                Height="{Binding PixelHeight}" Width="{Binding PixelWidth}" Stretch="None" 
                Panel.ZIndex="2"
                MouseLeave="Image_MouseLeave" 

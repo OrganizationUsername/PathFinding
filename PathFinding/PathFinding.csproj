@@ -11,13 +11,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="7.1.2" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="6.0.0" />
-    <PackageReference Include="Microsoft.Toolkit.Mvvm" Version="7.1.2" />
     <PackageReference Include="WriteableBitmapEx" Version="1.6.8" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\PathFinding.Core\PathFinding.Core.csproj" />
+    <ProjectReference Include="..\PathFinding.Shared\PathFinding.Shared.csproj" />
   </ItemGroup>
 
   <ItemGroup>

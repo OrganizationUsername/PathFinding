@@ -2,8 +2,9 @@
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
+using PathFinding.Models;
 
-namespace PathFinding.Stuff;
+namespace PathFinding.Persistence;
 
 public interface IStatePersistence
 {
