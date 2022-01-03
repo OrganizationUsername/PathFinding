@@ -37,7 +37,7 @@ public partial class MainWindow
     private readonly List<Color> _metroColors;
     private readonly Dictionary<Key, int> _numberKeys;
     private readonly Dictionary<Key, (int X, int Y)> _movementKeys;
-    public List<Key> LastPressedKeys = new List<Key>();
+    public List<Key> LastPressedKeys = new();
 
     public MainWindow()
     {
@@ -130,17 +130,6 @@ public partial class MainWindow
         }
 
         var partialTile = TileSize / Vm.MaxCellNumber;
-        foreach (var item in Vm.Items)
-        {
-            var tile = item.ConveyorTile.Tile;
-            if (tile.X > minX && tile.X <= maxX && tile.Y > minY && tile.Y <= maxY)
-            {
-                var leftPixel = tile.X * TileSize + partialTile * item.X;
-                var topPixel = tile.Y * TileSize + partialTile * item.Y;
-                Wb.FillRectangle(leftPixel - LeftX, topPixel - TopY, leftPixel + partialTile - LeftX, topPixel + partialTile - TopY, Colors.Brown);
-            }
-        }
-
         for (var i = 0; i < Vm.Conveyors.Count; i++)
         {
             var conveyor = Vm.Conveyors[i];
@@ -171,8 +160,18 @@ public partial class MainWindow
             }
         }
 
+        foreach (var item in Vm.Items)
+        {
+            var tile = item.ConveyorTile.Tile;
+            if (tile.X > minX && tile.X <= maxX && tile.Y > minY && tile.Y <= maxY)
+            {
+                var leftPixel = tile.X * TileSize + partialTile * item.X;
+                var topPixel = tile.Y * TileSize + partialTile * item.Y;
+                Wb.FillRectangle(leftPixel - LeftX, topPixel - TopY, leftPixel + partialTile - LeftX, topPixel + partialTile - TopY, Colors.SaddleBrown);
+            }
+        }
 
-        //if (_ran.NextDouble() < -0.0005)
+        //if (_ran.NextDouble() < 0.05)
         //{
         //    var bm = new BitmapImage(new("Assets/Human.png", UriKind.Relative));
         //    var writeableBitmap = new WriteableBitmap(bm);
@@ -249,7 +248,7 @@ public partial class MainWindow
         await Vm.HandleLeftClick(point);
     }
 
-    private void UIElement_OnMouseRightButtonDown(object sender, MouseButtonEventArgs e) => Vm.FlipElementSourceDestination(e.GetPosition(sender as Image));
+    private void UIElement_OnMouseRightButtonDown(object sender, MouseButtonEventArgs e) => Vm.HandleRightClick(e.GetPosition(sender as Image));
 
     private void TextImage_OnMouseWheel(object sender, MouseWheelEventArgs e)
     {

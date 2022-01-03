@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -18,9 +17,10 @@ public enum ClickMode { Player = 0, Conveyor = 1 }
 
 public class MainWindowViewModel : ObservableObject
 {
-    private Random rand = new Random(1);
+    private readonly Random _rand = new(1);
     public bool Paused { get; set; } = false;
     public string HoveredEntityDescription { get => _hoveredEntityDescription; set => SetProperty(ref _hoveredEntityDescription, value); }
+    //ToDo: Wb should not be in the ViewModel. 
     public WriteableBitmap Wb { get => _wb; set => SetProperty(ref _wb, value); }
     public State State { get; set; }
     public List<Tile> EntitiesToHighlight { get; set; } = new();
@@ -29,7 +29,6 @@ public class MainWindowViewModel : ObservableObject
     private int _fps;
     private string _hoveredEntityDescription;
     private string _tileString;
-    private long _ms;
     private WriteableBitmap _wb;
 #pragma warning disable CS4014
     public bool AllowDiagonal { get => _allowDiagonal; set { _allowDiagonal = value; PlayerPathFinding(); } }
@@ -61,18 +60,20 @@ public class MainWindowViewModel : ObservableObject
     public Tile SelectedConveyorTile { get; set; }
     public List<Conveyor> Conveyors { get; set; } = new();
     public List<Item> Items { get; set; } = new();
+    public int ItemsCount => Items.Count;
     private int _tickCounter = 0;
     public readonly int MaxCellNumber = 3;
 
-
     public RelayCommand ResetCommand { get; set; }
 
-    public MainWindowViewModel(/*IStatePersistence statePersistence*/)
+    public MainWindowViewModel(long ms /*IStatePersistence statePersistence*/)
     {
         PlayerCount = 3;
 
         for (var i = 1; i <= PlayerCount; i++) { PlayerDictionary.Add(i, (null, null)); }
 
+        Item.MainWindowViewModel = this;
+        Item.MaxCellNumber = MaxCellNumber;
         PixelWidth = 600;
         PixelHeight = 600;
         TileWidth = 20;
@@ -88,10 +89,63 @@ public class MainWindowViewModel : ObservableObject
         UploadMapString(@"3972_G4MPKI6UrMG9OgaGZmcAmLpKbFnWit9TRq0AVogGrRYWkQKSyyR9MuH9AenBv5sSeR+axQ4OHRwOESlSJAS5Z9t9tbIp5bwH/db7lgtKvQ3fH/yDCwonLSau8Y5aty1SCrbmxv20+I7bysl9AkepUN0bb8SGsANKLOiJCCOVU9u/PdYBet5gBsp6XKAeo8WuNkoNM9i8x35DUGYmR2HshCll3M4bPrVsPmGmOrfbSlJsVi5AcEMLzgbP00rTOd1HKeRUSX4C8L9Z9J5BfOKtSR8zs44M8O4CnJ34LyKDi1+JtWLy3HcqERkmHi4KuYeEAVZOkn7jlh3Ids0oomZVmhr0uiun2U/QT+4nJNkSyHAzQT3YYiIzDiVYB7yJesuCYk2e3Df2H0LT9zIwdRrIDAGbymDcWdFEvewh74DIswbs9HJiTy4feNxBJYXpdsockTBZH82r/DHk/7rdEm5CteuHA4xBLV4z55I+3SfLdkRAOvlY8Pk2kj0A");
     }
 
+    public async Task Tick(Point? point, bool leftClicked)
+    {
+        GetHoverElements(point);
+        if (!Paused)
+        {
+            RandomlyAddItem();
+            _tickCounter++;
+            if (_tickCounter >= 5)
+            {
+                Movement();
+                _tickCounter = 0;
+            }
+        }
+        if (leftClicked) { await HandleLeftClick(point); }
+        else { AlreadyClicked.Clear(); }
+    }
+
+    public async Task HandleLeftClick(Point? point)
+    {
+        if (!point.HasValue) return;
+        var tile = GetTileAtLocation(point);
+        if (tile is null) return;
+        switch (ClickMode)
+        {
+            case ClickMode.Player:
+                await TryFlipElement(tile); return;
+            case ClickMode.Conveyor:
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+    }
+
+    public async void HandleRightClick(Point? point)
+    {
+        if (!point.HasValue) return;
+        var tile = GetTileAtLocation(point);
+        if (tile is null) return;
+        switch (ClickMode)
+        {
+            case ClickMode.Player:
+                await HandleRightClickPlayerMode(tile);
+                break;
+            case ClickMode.Conveyor:
+                await HandleRightClickAddConveyorNode(tile);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+    }
+
     public void Reset()
     {
         if (int.TryParse(NewTileWidth, out var tileWidth) && tileWidth > 10 && int.TryParse(NewTileHeight, out var tileHeight) && tileHeight > 10)
         {
+            Conveyors.Clear();
+            Items.Clear();
             TileWidth = tileWidth;
             TileHeight = tileHeight;
             TileSize = Math.Max(Math.Min(PixelWidth / tileWidth, PixelHeight / tileHeight), 3);
@@ -113,10 +167,7 @@ public class MainWindowViewModel : ObservableObject
         {
             lineNumber++;
             var row = mapStringResult.mapStringArray[lineNumber];
-            for (var y = 0; y < mapStringResult.Y; y++)
-            {
-                State.TileGrid[x, y].IsPassable = row[y] == '0';
-            }
+            for (var y = 0; y < mapStringResult.Y; y++) { State.TileGrid[x, y].IsPassable = row[y] == '0'; }
         }
 
         TileWidth = State.X;
@@ -136,14 +187,26 @@ public class MainWindowViewModel : ObservableObject
         EntitiesToHighlight.Add(tileR);
     }
 
-
-    public async Task<(List<Cell> SolutionCells, Cell[,] AllCells, long TimeToSolve, DateTime thisDate)> PathFinding(Tile destination, Tile source, bool allowDiagonal, DateTime requestDate)
+    public async Task<(List<Cell> SolutionCells, Cell[,] AllCells, long TimeToSolve, DateTime thisDate)> PathFinding(Tile destination, Tile source, bool allowDiagonal, DateTime requestDate, bool forceWalkable = false)
     {
         Cell destCell = new() { Id = destination.Id, HScore = 0, X = destination.X, Y = destination.Y, Passable = destination.IsPassable };
         Cell sourceCell = new() { Id = source.Id, HScore = Math.Abs(source.X - destination.X) + Math.Abs(source.Y - destination.Y), X = source.X, Y = source.Y, Passable = source.IsPassable };
 
         var cells = new Cell[State.X, State.Y];
 
+        (destCell, sourceCell) = GetStateCells(destination, source, destCell, cells, sourceCell);
+        if (forceWalkable) { destCell.Passable = true; sourceCell.Passable = true; }
+
+        //Not really useful at the moment.
+        //await Chunking(cells, requestDate);
+        var solution = await Solver.SolveAsync(cells, sourceCell, destCell, null, requestDate, allowDiagonal);
+        if (solution.SolutionCells is null || !solution.SolutionCells.Any()) return default;
+        Trace.WriteLine($"{solution.TimeToSolve}ms to solve ({sourceCell.X},{sourceCell.Y}) to ({destCell.X},{destCell.Y}).");
+        return solution;
+    }
+
+    private (Cell destCell, Cell sourceCell) GetStateCells(Tile destination, Tile source, Cell destCell, Cell[,] cells, Cell sourceCell)
+    {
         foreach (var t in State.Tiles)
         {
             var hScore = Math.Abs(t.X - destCell.X) + Math.Abs(t.Y - destCell.Y);
@@ -156,20 +219,14 @@ public class MainWindowViewModel : ObservableObject
                 Id = t.Id,
                 Passable = t.IsPassable
             };
+
             if (t == destination) { destCell = cell; }
             if (t == source) { sourceCell = cell; }
-
             cells[t.X, t.Y] = cell;
         }
 
-        //Not really useful at the moment.
-        //await Chunking(cells, requestDate);
-        var solution = await Solver.SolveAsync(cells, sourceCell, destCell, null, requestDate, allowDiagonal);
-        if (solution.SolutionCells is null || !solution.SolutionCells.Any()) return default;
-        Trace.WriteLine($"{solution.TimeToSolve}ms to solve ({sourceCell.X},{sourceCell.Y}) to ({destCell.X},{destCell.Y}).");
-        return solution;
+        return (destCell, sourceCell);
     }
-
 
     public async Task PlayerPathFinding()
     {
@@ -239,25 +296,25 @@ public class MainWindowViewModel : ObservableObject
 
     private async Task InvalidateDisconnectedCellsInChunks(List<Cell[,]> superCells, int chunkSize, DateTime thisDate)
     {
-        foreach (var supercell in superCells)
+        foreach (var superCell in superCells)
         {
             var tempCellGrid = new Cell[chunkSize + 1, chunkSize + 1];
-            var initialCell = supercell[0, 0];
+            var initialCell = superCell[0, 0];
             for (var a = 0; a < chunkSize; a++)
             {
                 for (var b = 0; b < chunkSize; b++)
                 {
-                    if (supercell[a, b] is null) continue;
+                    if (superCell[a, b] is null) continue;
                     tempCellGrid[a, b] = new()
                     {
                         Finished = false,
-                        GScore = supercell[a, b].GScore,
-                        Id = supercell[a, b].Id,
-                        X = supercell[a, b].X % chunkSize,
-                        Y = supercell[a, b].Y % chunkSize,
-                        HScore = supercell[a, b].HScore,
-                        Passable = supercell[a, b].Passable,
-                        Destinations = new() { supercell[a, b] }
+                        GScore = superCell[a, b].GScore,
+                        Id = superCell[a, b].Id,
+                        X = superCell[a, b].X % chunkSize,
+                        Y = superCell[a, b].Y % chunkSize,
+                        HScore = superCell[a, b].HScore,
+                        Passable = superCell[a, b].Passable,
+                        Destinations = new() { superCell[a, b] }
                     };
                 }
             }
@@ -267,7 +324,7 @@ public class MainWindowViewModel : ObservableObject
             {
                 for (var b = 0; b < chunkSize; b++)
                 {
-                    if (supercell[a, b] is null || !supercell[a, b].Passable) continue;
+                    if (superCell[a, b] is null || !superCell[a, b].Passable) continue;
                     initialCell = tempCellGrid[a, b];
                     tempInitial = initialCell.Destinations.First();
                     //Trace.WriteLine($"Initial at: {tempInitial.X}, {tempInitial.Y}");
@@ -326,25 +383,10 @@ public class MainWindowViewModel : ObservableObject
         }
     }
 
-    public async Task HandleLeftClick(Point? point)
-    {
-        if (!point.HasValue) return;
-        var tile = GetTileAtLocation(point);
-        if (tile is null) return;
-        switch (ClickMode)
-        {
-            case ClickMode.Player:
-                await TryFlipElement(tile); return;
-            case ClickMode.Conveyor:
-                break;
-            default:
-                throw new ArgumentOutOfRangeException();
-        }
-    }
-
     private async Task TryFlipElement(Tile tile)
     {
-        if (AlreadyClicked.Any(t => t.Id == tile.Id)) return;
+        if (AlreadyClicked.Any(t => t.Id == tile.Id)) return; //ToDo: This could be done with storing a dictionary better, I think.
+        if (tile.TileRole == TileRole.Conveyor) return;
         tile.IsPassable = !tile.IsPassable;
         if (!tile.IsPassable)
         {
@@ -374,40 +416,27 @@ public class MainWindowViewModel : ObservableObject
         return State.TileGrid[xThing, yThing];
     }
 
-    public void FlipElementSourceDestination(Point? point)
+    private async Task HandleRightClickAddConveyorNode(Tile tile)
     {
-        //Stopwatch sw = new Stopwatch(); //2 ms
-        //sw.Start();
-        if (!point.HasValue) return;
-        var tile = GetTileAtLocation(point);
-        if (tile is null) return;
-        switch (ClickMode)
-        {
-            case ClickMode.Player:
-                HandleRightClickPlayerMode(tile);
-                break;
-            case ClickMode.Conveyor:
-                HandleRightClickAddConveyorNode(tile);
-                break;
-            default:
-                throw new ArgumentOutOfRangeException();
-        }
-    }
-
-    private async void HandleRightClickAddConveyorNode(Tile tile)
-    {
-        //ToDo: I also need a way to make a conveyor land on another conveyor. 
+        //ToDo: Need to make placing conveyors better. 
 
         //ToDo: Here, I should make sure that it is either IsPassable or it lands on another conveyor.
-        if (SelectedConveyorTile is null && tile.IsPassable) { SelectedConveyorTile = tile; return; }
-        if (!tile.IsPassable) return;
+        if (SelectedConveyorTile is null && (tile.IsPassable || tile.TileRole == TileRole.Conveyor))
+        {
+            SelectedConveyorTile = tile;
+            return;
+        }
+
+        if (!tile.IsPassable && tile.TileRole != TileRole.Conveyor) return;
 
         //ToDo: This is messed up
-        var result = await PathFinding(SelectedConveyorTile, tile, false, DateTime.Now);
-        SelectedConveyorTile = null;
+        var result = await PathFinding(SelectedConveyorTile, tile, false, DateTime.Now, true);
         if (result.SolutionCells is null) return;
         var conveyor = new Conveyor() { Id = Conveyors.Count + 1 };
-        //ToDo: I should go through this in reverse.
+
+        SelectedConveyorTile = null;
+
+        //ToDo: I should go through this in reverse?
         for (var index = 0; index < result.SolutionCells.Count; index++)
         {
             var cell = result.SolutionCells[index];
@@ -422,7 +451,7 @@ public class MainWindowViewModel : ObservableObject
             var (x, y) = (cell.X - nextCell.X, cell.Y - nextCell.Y);
             tempTile.IsPassable = false;
             tempTile.TileRole = TileRole.Conveyor;
-            conveyor.ConveyorTile.Add(new() { Tile = tempTile, Direction = (x, y), Conveyor = conveyor });
+            conveyor.ConveyorTile.Add(new() { Tile = tempTile, Direction = (X: x, Y: y), Conveyor = conveyor });
         }
 
         for (var index = 0; index < conveyor.ConveyorTile.Count; index++)
@@ -438,23 +467,24 @@ public class MainWindowViewModel : ObservableObject
         for (var index = 0; index < Conveyors.Count; index++)
         {
             var conv = Conveyors[index];
-            var tempTile = conv.ConveyorTile.Last();
-            if (tempTile.NextConveyorTile is not null) continue;
+            var masterTile = conv.ConveyorTile[^1];
+            if (masterTile.NextConveyorTile is not null) continue;
 
             for (var i = 0; i < Conveyors.Count; i++)
             {
-                var convMaster = Conveyors[i];
-                var matchingTile = convMaster.ConveyorTile.FirstOrDefault(t => t.Tile.X == tempTile.Tile.X && t.Tile.Y == tempTile.Tile.Y);
-                if (matchingTile is null) continue;
-                tempTile.NextConveyorTile = matchingTile;
+                if (i == index) continue;
+                var convSlave = Conveyors[i];
+                var slaveTile = convSlave.ConveyorTile.FirstOrDefault(t =>
+                    t.Tile.X == masterTile.Tile.X && t.Tile.Y == masterTile.Tile.Y);
+                if (slaveTile is null) continue;
+                masterTile.NextConveyorTile = slaveTile;
+                masterTile.Direction = slaveTile.Direction;
             }
         }
 
+        //foreach (var co in Conveyors) { /*I suck at debug with nulls.*/ Trace.WriteLine($"ConveyorID: {co.Id}" + string.Join("=> ", co.ConveyorTile.Select(x => $"({x.Tile.X},{x.Tile.Y}) to ({x.NextConveyorTile?.Tile.X ?? -1},{x.NextConveyorTile?.Tile.Y ?? -1})"))); }
 
         await PlayerPathFinding();
-
-
-
 
         /*
         https://enzisoft.wordpress.com/2016/03/12/factorio-in-unityc-goal-reached/ 
@@ -481,9 +511,7 @@ public class MainWindowViewModel : ObservableObject
         */
     }
 
-
-
-    private async void HandleRightClickPlayerMode(Tile tile)
+    private async Task HandleRightClickPlayerMode(Tile tile)
     {
         //ToDo: Make sure right-clicking source/destination doesn't put it in a bad state.
         var keys = PlayerDictionary.Keys.ToArray();
@@ -530,123 +558,113 @@ public class MainWindowViewModel : ObservableObject
 
     }
 
-    public async Task Tick(Point? point, bool leftClicked)
-    {
-        GetHoverElements(point);
-        if (!Paused)
-        {
-            RandomlyAddItem();
-            _tickCounter++;
-            if (_tickCounter >= 5)
-            {
-                Movement();
-                _tickCounter = 0;
-            }
-        }
-        if (leftClicked) { await HandleLeftClick(point); }
-        else { AlreadyClicked.Clear(); }
-    }
-
     public void RandomlyAddItem()
     {
-        if (!Conveyors.Any() || rand.NextDouble() > 0.1) { return; }
+        if (!Conveyors.Any() || Items.Count > 1000 /*|| _rand.NextDouble() > 0.9*/) { return; }
 
-        var conveyorIndex = rand.Next(0, 0);// Conveyors.Count);
+        var conveyorIndex = _rand.Next(0, Conveyors.Count);
         var conveyor = Conveyors[conveyorIndex];
         var conveyorTile = conveyor.ConveyorTile.First();
         if (conveyorTile.Items.Any()) return;
-        var item = new Item() { X = rand.Next(0, MaxCellNumber), Y = rand.Next(0, MaxCellNumber), ConveyorTile = conveyorTile };
+        var item = new Item() { X = _rand.Next(0, MaxCellNumber), Y = _rand.Next(0, MaxCellNumber), ConveyorTile = conveyorTile };
         conveyorTile.Items.Add(item);
         conveyor.Items.Add(item);
         Items.Add(item);
+        OnPropertyChanged(nameof(ItemsCount));
     }
 
     public void Movement()
     {
-        //ToDo: Actually I need to go through items according to who is furthest down the line so I can account for collisions.
+        //ToDo: Think about how this will be performed without GUI
+        //ToDo: Actually I need to go through items according to who is furthest down the line so I can account for collisions more effectively.
         //Maybe it would be the segment * 10 + (_maxCellNumber * the tile direction (if x=3 and direction = (1,3), then it's the first that would be checked.). I'd look at highest first.
-        //ToDo: What if I kept the left and right hand sides separate? Just have to define left/right side of conveyor.
+        //ToDo: What if I kept the left and right hand sides separate? Just have to define left/right side of each conveyorTile. If you go from one conveyor to another, left/right isn't respected.
+        //ToDo: There's some issue with interlacing conveyors.
         for (var index = 0; index < Items.Count; index++)
         {
             var item = Items[index];
-            item.X -= item.ConveyorTile.Direction.x;
-            item.Y -= item.ConveyorTile.Direction.y;
 
-            ConveyorTile nextConveyor = item.ConveyorTile.NextConveyorTile;
-            if (item.ConveyorTile.NextConveyorTile is null)
+            var (nextX, nextY, nextTile) = item.GetNextLocation();
+
+            if (nextTile.Direction.X + nextTile.Direction.Y == 0)
             {
-                DeleteItem(item);
+                item.DeleteItem();
                 continue;
             }
 
-            //ToDo: I can replace almost all of this logic by holding NextConveyor tile in ConveyorTile
-            var conveyor = item.ConveyorTile.Conveyor;
-            var currentConveyorTile = item.ConveyorTile;
-      
-
-
-            if (item.X < 0)
+            var anotherItem = nextTile.Items.FirstOrDefault(i => i.X == nextX && i.Y == nextY);
+            if (anotherItem is not null)
             {
-                if (nextConveyor is null) { DeleteItem(item); continue; }
-                currentConveyorTile.Items.Remove(item);
-                item.ConveyorTile = nextConveyor;
-                nextConveyor.Items.Add(item);
-                item.X = MaxCellNumber - 1;
+                //Trace.WriteLine($"Another item is in the way at: Cell=({anotherItem.ConveyorTile.Tile.X},{anotherItem.ConveyorTile.Tile.Y}) ({anotherItem.X},{anotherItem.Y})" + $". An item is at Cell=({item.ConveyorTile.Tile.X},{item.ConveyorTile.Tile.Y}) ({item.X},{item.Y}). Our velocity is: {item.ConveyorTile.Direction}");
                 continue;
             }
 
-            if (item.X > MaxCellNumber)
-            {
-                if (nextConveyor is null) { DeleteItem(item); continue; }
-                currentConveyorTile.Items.Remove(item);
-                item.ConveyorTile = nextConveyor;
-                nextConveyor.Items.Add(item);
-                item.X = 0;
-                continue;
-            }
+            (item.X, item.Y) = (nextX, nextY);
 
-            if (item.Y < 0)
+            if (item.ConveyorTile != nextTile)
             {
-                if (nextConveyor is null) { DeleteItem(item); continue; }
-                currentConveyorTile.Items.Remove(item);
-                item.ConveyorTile = nextConveyor;
-                nextConveyor.Items.Add(item);
-                item.Y = MaxCellNumber - 1;
-                continue;
+                item.ConveyorTile.Items.Remove(item);
+                nextTile.Items.Add(item);
+                item.ConveyorTile = nextTile;
             }
-
-            if (item.Y > MaxCellNumber)
-            {
-                if (nextConveyor is null) { DeleteItem(item); continue; }
-                currentConveyorTile.Items.Remove(item);
-                item.ConveyorTile = nextConveyor;
-                nextConveyor.Items.Add(item);
-                item.Y = 0;
-                continue;
-            }
-
         }
     }
-
-    public void DeleteItem(Item item)
-    {
-        Items.Remove(item);
-        item.ConveyorTile.Items.Remove(item);
-    }
-
 }
 
 public class Item
 {
     //ToDo: Maybe this should also have the last velocity so it can continue to go to the left/right side of conveyor
+    public static MainWindowViewModel MainWindowViewModel;
+    public static int MaxCellNumber;
     public int X;
     public int Y;
     public ConveyorTile ConveyorTile;
+
+    public void DeleteItem()
+    {
+        MainWindowViewModel.Items.Remove(this);
+        ConveyorTile.Items.Remove(this);
+    }
+
+    public (int projectedX, int projectedY, ConveyorTile x) GetNextLocation()
+    {
+
+        var projectedX = X - ConveyorTile.Direction.X;
+        var projectedY = Y - ConveyorTile.Direction.Y;
+
+        var nextConveyorTile = ConveyorTile;
+
+        if (projectedX < 0)
+        {
+            projectedX = MaxCellNumber - 1;
+            nextConveyorTile = ConveyorTile.NextConveyorTile;
+        }
+
+        if (projectedX > MaxCellNumber)
+        {
+            projectedX = 0;
+            nextConveyorTile = ConveyorTile.NextConveyorTile;
+        }
+
+        if (projectedY < 0)
+        {
+            projectedY = MaxCellNumber - 1;
+            nextConveyorTile = ConveyorTile.NextConveyorTile;
+        }
+
+        if (projectedY > MaxCellNumber)
+        {
+            projectedY = 0;
+            nextConveyorTile = ConveyorTile.NextConveyorTile;
+        }
+
+        return (projectedX, projectedY, nextConveyorTile);
+    }
 }
 
 public class ConveyorTile
 {
-    public (int x, int y) Direction;
+    public (int X, int Y) Direction;
     public Tile Tile;
     public List<Item> Items = new();
     public Conveyor Conveyor;
