@@ -17,3 +17,4 @@ Paths may be found.
 - Thin walls
 - Undo/Redo
 - Show which click mode the user is in. Maybe allow them to click to the click mode they want to be in.
+- Provide OnlyPassable and OnlyImpassable modes for clicking.
