@@ -1,6 +1,4 @@
-﻿using PathFinding.Core;
-using PathFinding.Stuff;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
@@ -10,7 +8,13 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using System.Numerics;
+using PathFinding.Core;
 using PathFinding.Annotations;
+using PathFinding.ViewModels;
+using PathFinding.Models;
+
+using Point = System.Numerics.Vector2;
 
 namespace PathFinding;
 
@@ -20,8 +24,8 @@ namespace PathFinding;
 // ReSharper disable once UnusedMember.Global
 public partial class MainWindow
 {
-    private MainWindowViewModel Vm { get; }
-    private WriteableBitmap Wb => Vm.Wb;
+    public MainWindowViewModel Vm { get; }
+    public WriteableBitmap Wb { get; }
     private Point? _point;
     private bool _clicked;
     private int BubbleSize => Vm.State.TileSize / 3;
@@ -41,13 +45,16 @@ public partial class MainWindow
 
     public MainWindow()
     {
+        Vm = new MainWindowViewModel();
+        Wb = new(Vm.PixelWidth, Vm.PixelHeight, 96, 96, PixelFormats.Bgra32, null);
+
         InitializeComponent();
+        DataContext = Vm;
+
         //CompositionTarget.Rendering += RenderTickAsync; /* https://docs.microsoft.com/en-us/dotnet/desktop/wpf/graphics-multimedia/how-to-render-on-a-per-frame-interval-using-compositiontarget?view=netframeworkdesktop-4.8&viewFallbackFrom=netdesktop-6.0 */
         var dt = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1) };
         dt.Tick += RenderTickAsync;
         dt.Start();
-        Vm = DataContext as MainWindowViewModel;
-        if (Vm is null) throw new("Bah.");
 
         _metroColors = new()
         {
@@ -231,7 +238,7 @@ public partial class MainWindow
             Vm.Top = Math.Max(0, Vm.Top);
         }
 
-        _point = e.GetPosition(sender as Image);
+        _point = PointToVector(e.GetPosition(sender as Image));
         _clicked = e.LeftButton == MouseButtonState.Pressed;
         Vm.LeftButtonClick = _clicked;
     }
@@ -242,13 +249,14 @@ public partial class MainWindow
 
     private async void UIElement_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        var point = e.GetPosition(sender as Image);
+        var point = PointToVector(e.GetPosition(sender as Image));
         _clicked = e.LeftButton == MouseButtonState.Pressed;
         Vm.LeftButtonClick = _clicked;
         await Vm.HandleLeftClick(point);
     }
 
-    private void UIElement_OnMouseRightButtonDown(object sender, MouseButtonEventArgs e) => Vm.HandleRightClick(e.GetPosition(sender as Image));
+    private void UIElement_OnMouseRightButtonDown(object sender, MouseButtonEventArgs e) => 
+        Vm.HandleRightClick(PointToVector(e.GetPosition(sender as Image)));
 
     private void TextImage_OnMouseWheel(object sender, MouseWheelEventArgs e)
     {
@@ -270,4 +278,6 @@ public partial class MainWindow
     /* AdmSnyder is great: MessageBox.Show($"{(_rightClickX, _rightClickY) = (e.CursorLeft, e.CursorTop)}"); */
 
     private void MenuItem_Click(object sender, RoutedEventArgs e) => MessageBox.Show($"{_rightClickX},{_rightClickY}");
+
+    private Vector2 PointToVector(System.Windows.Point point) => new Vector2((float)point.X, (float)point.Y);
 }

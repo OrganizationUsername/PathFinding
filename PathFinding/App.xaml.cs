@@ -1,7 +1,8 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using PathFinding.Stuff;
-using System;
+﻿using System;
 using System.Windows;
+using Microsoft.Extensions.DependencyInjection;
+using PathFinding.Persistence;
+using PathFinding.ViewModels;
 
 namespace PathFinding
 {
@@ -28,7 +29,5 @@ namespace PathFinding
             services.AddSingleton<MainWindowViewModel, MainWindowViewModel>();
             return services.BuildServiceProvider();
         }
-
-
     }
 }

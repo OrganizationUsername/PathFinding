@@ -43,6 +43,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\PathFinding.Core\PathFinding.Core.csproj" />
+    <ProjectReference Include="..\PathFinding.Shared\PathFinding.Shared.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Update="Assets\Human.png">

@@ -1,4 +1,10 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices.WindowsRuntime;
+using System.Threading.Tasks;
+using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
@@ -9,30 +15,30 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.Graphics.Canvas;
 using Microsoft.Graphics.Canvas.Text;
-using PathFinding.Core;
-using PathFinding.Stuff;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
-using System.Threading.Tasks;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using PathFinding.Core;
+
 
 using Color = Windows.UI.Color;
 using Key = Windows.System.VirtualKey;
 using WriteableBitmap = Microsoft.UI.Xaml.Media.Imaging.WriteableBitmap;
 using System.Numerics;
 using Microsoft.Graphics.Canvas.Geometry;
+using PathFinding.ViewModels;
+using PathFinding.Models;
 
 namespace Pathfinding.WinUI;
 
 [ObservableObject]
 public sealed partial class MainWindow : Window
 {
-    [ObservableProperty]
     private MainWindowViewModel _viewModel;
+    public MainWindowViewModel ViewModel
+    {
+        get => _viewModel;
+        set => SetProperty(ref _viewModel, value);
+    }
 
     public MainWindowViewModel Vm => _viewModel;
 
@@ -88,28 +94,38 @@ public sealed partial class MainWindow : Window
             Options = CanvasDrawTextOptions.NoPixelSnap
         };
 
-        CreateConveyorTriangles();
+        _triangles = CreateConveyorTriangles();
 
         CompositionTarget.Rendering += CompositionTarget_Rendering;
     }
 
-    private void CreateConveyorTriangles()
+    private CanvasGeometry[] CreateConveyorTriangles()
     {
-        var triUpBuilder = new CanvasPathBuilder(_device);
-        triUpBuilder.BeginFigure(1, 1);
-        triUpBuilder.AddLine(10, 10);
-        triUpBuilder.AddLine(1, 10);
-        triUpBuilder.EndFigure(CanvasFigureLoop.Closed);
+        int a = 15;
+        int b = 30;
 
-        _triangles = new[]
+        return new CanvasGeometry[]
         {
-            CanvasGeometry.CreatePath(triUpBuilder)
+            CreateTriangle(new(a, 0), new(0, a), new(a, b)),  // Left
+            CreateTriangle(new(a, 0), new(b, a), new(a, b)),  // Right
+            CreateTriangle(new(0, 0), new(b, 0), new(a, a)),  // Up
+            CreateTriangle(new(0, 0), new(b, 0), new(a, -a)), // Down
         };
+
+        CanvasGeometry CreateTriangle(Vector2 a, Vector2 b, Vector2 c)
+        {
+            var triUpBuilder = new CanvasPathBuilder(_device);
+            triUpBuilder.BeginFigure(a.X, a.Y);
+            triUpBuilder.AddLine(b.X, b.Y);
+            triUpBuilder.AddLine(c.X, c.Y);
+            triUpBuilder.EndFigure(CanvasFigureLoop.Closed);
+            return CanvasGeometry.CreatePath(triUpBuilder);
+        }
     }
 
     private void EnsureSwapChainReady()
     {
-        if (_swapChain == null)
+        if (_swapChain is null)
         {
             _swapChain = new CanvasSwapChain(
                 _device,
@@ -146,8 +162,7 @@ public sealed partial class MainWindow : Window
         }
         _ticksPerSecond++;
 
-        await Vm.Tick(_point, _clicked);
-        //CheckKeys();
+        await Vm.Tick(PointToVector(_point), _clicked);
 
         using (var ds = swapChainPanel.SwapChain.CreateDrawingSession(Colors.CornflowerBlue))
         {
@@ -158,38 +173,38 @@ public sealed partial class MainWindow : Window
         _swapChain.Present(0);
     }
 
-    private void CheckKeys()
-    {
-        if (FocusManager.GetFocusedElement() is TextBox)
-            return;
+    //private void CheckKeys()
+    //{
+    //    if (FocusManager.GetFocusedElement() is TextBox)
+    //        return;
 
-        foreach (var kvp in _numberKeys.Where(x => IsKeyPressed(x.Key)))
-        {
-            Vm.CurrentPlayer = Math.Min(kvp.Value, Vm.PlayerCount);
-        }
+    //    foreach (var kvp in _numberKeys.Where(x => IsKeyPressed(x.Key)))
+    //    {
+    //        Vm.CurrentPlayer = Math.Min(kvp.Value, Vm.PlayerCount);
+    //    }
 
-        foreach (var kvp in _movementKeys.Where(x => IsKeyPressed(x.Key)))
-        {
-            Vm.Left += 10 * kvp.Value.X;
-            Vm.Top += 10 * kvp.Value.Y;
-            //DrawCostText(_cellBackup);
-        }
+    //    foreach (var kvp in _movementKeys.Where(x => IsKeyPressed(x.Key)))
+    //    {
+    //        Vm.Left += 10 * kvp.Value.X;
+    //        Vm.Top += 10 * kvp.Value.Y;
+    //        //DrawCostText(_cellBackup);
+    //    }
 
-        if (IsKeyPressed(Key.C) && !LastPressedKeys.Contains(Key.C))
-        {
-            Vm.ClickMode = 1 - Vm.ClickMode; LastPressedKeys.Add(Key.C);
-        }
+    //    if (IsKeyPressed(Key.C) && !LastPressedKeys.Contains(Key.C))
+    //    {
+    //        Vm.ClickMode = 1 - Vm.ClickMode; LastPressedKeys.Add(Key.C);
+    //    }
 
-        if (!IsKeyPressed(Key.C) && LastPressedKeys.Contains(Key.C))
-        {
-            LastPressedKeys.Remove(Key.C);
-        }
-    }
+    //    if (!IsKeyPressed(Key.C) && LastPressedKeys.Contains(Key.C))
+    //    {
+    //        LastPressedKeys.Remove(Key.C);
+    //    }
+    //}
 
-    private bool IsKeyPressed(Key key)
-    {
-        return CoreWindow.GetKeyState(key) == Windows.UI.Core.CoreVirtualKeyStates.Down;
-    }
+    //private bool IsKeyPressed(Key key)
+    //{
+    //    return CoreWindow.GetKeyState(key) == Windows.UI.Core.CoreVirtualKeyStates.Down;
+    //}
 
     private void RenderFrame(CanvasDrawingSession ds)
     {
@@ -262,30 +277,44 @@ public sealed partial class MainWindow : Window
                 var cell = conveyor.ConveyorTile[index].Tile;
 
                 var (x, y) = conveyor.ConveyorTile[index].Direction;
-                if (x == 0 && y == 0)
+                var triangle = (x, y) switch
                 {
-                    //var conveyerRect = new Rect(cell.X * TileSize + 1 - LeftX, cell.Y * TileSize + 1 - TopY, TileSize - 1, TileSize - 1);
-                    //ds.DrawRectangle(conveyerRect, Colors.Gray);
+                    (1, 0) => _triangles[0],
+                    (-1, 0) => _triangles[1],
+                    (0, -1) => _triangles[2],
+                    (0, 1) => _triangles[3],
+                    _ => null
+                };
+
+                if (triangle is null)
                     continue;
-                }
-                if (x != 0)
-                {
-                    //ds.DrawGeometry(_triangles[0], Colors.Green);
-                    ds.DrawGeometry(_triangles[0], new Vector2(cell.X * TileSize + 1 - LeftX, cell.Y * TileSize + 1 - TopY), Colors.Green);
-                    //Wb.FillTriangle(
-                    //    cell.X * TileSize + TileSize / 2 - LeftX, cell.Y * TileSize - TopY + 1,
-                    //    cell.X * TileSize + TileSize / 2 - LeftX, (cell.Y + 1) * TileSize - TopY - 1,
-                    //    -LeftX + ((x > 0) ? cell.X * TileSize + 1 : (cell.X + 1) * TileSize - 1),
-                    //    cell.Y * TileSize + TileSize / 2 - TopY, color);
-                }
-                else
-                {
-                    //Wb.FillTriangle(
-                    //    cell.X * TileSize - LeftX + 1, cell.Y * TileSize + TileSize / 2 - TopY,
-                    //    (cell.X + 1) * TileSize - LeftX - 1, cell.Y * TileSize + TileSize / 2 - TopY,
-                    //    cell.X * TileSize + TileSize / 2 - LeftX,
-                    //    -TopY + (y > 0 ? cell.Y * TileSize + 1 : (cell.Y + 1) * TileSize) - 1, color);
-                }
+
+                ds.DrawGeometry(triangle, new Vector2(cell.X * TileSize + 1 - LeftX, cell.Y * TileSize + 1 - TopY), color);
+
+                //if (x == 0 && y == 0)
+                //{
+                //    //var conveyerRect = new Rect(cell.X * TileSize + 1 - LeftX, cell.Y * TileSize + 1 - TopY, TileSize - 1, TileSize - 1);
+                //    //ds.DrawRectangle(conveyerRect, Colors.Gray);
+                //    continue;
+                //}
+                //if (x != 0)
+                //{
+                //    //ds.DrawGeometry(_triangles[0], Colors.Green);
+                //    ds.DrawGeometry(_triangles[0], new Vector2(cell.X * TileSize + 1 - LeftX, cell.Y * TileSize + 1 - TopY), Colors.Green);
+                //    //Wb.FillTriangle(
+                //    //    cell.X * TileSize + TileSize / 2 - LeftX, cell.Y * TileSize - TopY + 1,
+                //    //    cell.X * TileSize + TileSize / 2 - LeftX, (cell.Y + 1) * TileSize - TopY - 1,
+                //    //    -LeftX + ((x > 0) ? cell.X * TileSize + 1 : (cell.X + 1) * TileSize - 1),
+                //    //    cell.Y * TileSize + TileSize / 2 - TopY, color);
+                //}
+                //else
+                //{
+                //    //Wb.FillTriangle(
+                //    //    cell.X * TileSize - LeftX + 1, cell.Y * TileSize + TileSize / 2 - TopY,
+                //    //    (cell.X + 1) * TileSize - LeftX - 1, cell.Y * TileSize + TileSize / 2 - TopY,
+                //    //    cell.X * TileSize + TileSize / 2 - LeftX,
+                //    //    -TopY + (y > 0 ? cell.Y * TileSize + 1 : (cell.Y + 1) * TileSize) - 1, color);
+                //}
             }
         }
     }
@@ -376,11 +405,11 @@ public sealed partial class MainWindow : Window
             {
                 _clicked = true;
                 Vm.LeftButtonClick = _clicked;
-                await Vm.HandleLeftClick(point.Position);
+                await Vm.HandleLeftClick(PointToVector(point.Position));
             }
             else if(point.Properties.IsRightButtonPressed)
             {
-                Vm.FlipElementSourceDestination(point.Position);
+                Vm.HandleRightClick(PointToVector(point.Position));
             }
             else if (point.Properties.IsMiddleButtonPressed)
             {
@@ -420,5 +449,12 @@ public sealed partial class MainWindow : Window
     private void LoadMapString(object sender, RoutedEventArgs e)
     {
         Vm.UploadMapString(Vm.TileString);
+    }
+
+    private Vector2? PointToVector(Point? point)
+    {
+        if (point.HasValue)
+            return new Vector2((float)point.Value.X, (float)point.Value.Y);
+        return null;
     }
 }

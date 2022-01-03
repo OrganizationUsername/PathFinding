@@ -1,17 +1,18 @@
-﻿using Microsoft.Toolkit.Mvvm.ComponentModel;
-using PathFinding.Core;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using Microsoft.Toolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using PathFinding.Core;
 using PathFinding.Annotations;
-using Point = System.Windows.Point;
+using PathFinding.Persistence;
+using PathFinding.Models;
 
-namespace PathFinding.Stuff;
+using Point = System.Numerics.Vector2;
+
+namespace PathFinding.ViewModels;
 
 public enum ClickMode { Player = 0, Conveyor = 1 }
 
@@ -20,8 +21,6 @@ public class MainWindowViewModel : ObservableObject
     private readonly Random _rand = new(1);
     public bool Paused { get; set; } = false;
     public string HoveredEntityDescription { get => _hoveredEntityDescription; set => SetProperty(ref _hoveredEntityDescription, value); }
-    //ToDo: Wb should not be in the ViewModel. 
-    public WriteableBitmap Wb { get => _wb; set => SetProperty(ref _wb, value); }
     public State State { get; set; }
     public List<Tile> EntitiesToHighlight { get; set; } = new();
     public List<Tile> AlreadyClicked { get; } = new();
@@ -29,10 +28,7 @@ public class MainWindowViewModel : ObservableObject
     private int _fps;
     private string _hoveredEntityDescription;
     private string _tileString;
-    private WriteableBitmap _wb;
-#pragma warning disable CS4014
-    public bool AllowDiagonal { get => _allowDiagonal; set { _allowDiagonal = value; PlayerPathFinding(); } }
-#pragma warning restore CS4014
+    public bool AllowDiagonal { get => _allowDiagonal; set => SetProperty(ref _allowDiagonal, value); }
     public bool AlwaysPath { get; set; } = true;
     public int TileSize { get; set; }
     public int Top { get; set; }
@@ -65,8 +61,9 @@ public class MainWindowViewModel : ObservableObject
     public readonly int MaxCellNumber = 3;
 
     public RelayCommand ResetCommand { get; set; }
+    public AsyncRelayCommand<bool> ChangeDiagonalCommand { get; }
 
-    public MainWindowViewModel(long ms /*IStatePersistence statePersistence*/)
+    public MainWindowViewModel(/*long ms*/ /*IStatePersistence statePersistence*/)
     {
         PlayerCount = 3;
 
@@ -78,13 +75,18 @@ public class MainWindowViewModel : ObservableObject
         PixelHeight = 600;
         TileWidth = 20;
         TileHeight = 20;
-        var dpi = 96;
         var tileSize = 10;
         TileSize = tileSize;
-        Wb = new(PixelWidth, PixelHeight, dpi, dpi, PixelFormats.Bgra32, null);
         Sp = new StatePersistence();
         State = new(TileWidth, TileHeight, tileSize, Sp);
+
         ResetCommand = new(Reset);
+        ChangeDiagonalCommand = new(async (x) =>
+        {
+            AllowDiagonal = x;
+            await PlayerPathFinding();
+        });
+
         SetupMapString();
         UploadMapString(@"3972_G4MPKI6UrMG9OgaGZmcAmLpKbFnWit9TRq0AVogGrRYWkQKSyyR9MuH9AenBv5sSeR+axQ4OHRwOESlSJAS5Z9t9tbIp5bwH/db7lgtKvQ3fH/yDCwonLSau8Y5aty1SCrbmxv20+I7bysl9AkepUN0bb8SGsANKLOiJCCOVU9u/PdYBet5gBsp6XKAeo8WuNkoNM9i8x35DUGYmR2HshCll3M4bPrVsPmGmOrfbSlJsVi5AcEMLzgbP00rTOd1HKeRUSX4C8L9Z9J5BfOKtSR8zs44M8O4CnJ34LyKDi1+JtWLy3HcqERkmHi4KuYeEAVZOkn7jlh3Ids0oomZVmhr0uiun2U/QT+4nJNkSyHAzQT3YYiIzDiVYB7yJesuCYk2e3Df2H0LT9zIwdRrIDAGbymDcWdFEvewh74DIswbs9HJiTy4feNxBJYXpdsockTBZH82r/DHk/7rdEm5CteuHA4xBLV4z55I+3SfLdkRAOvlY8Pk2kj0A");
     }
@@ -610,136 +612,3 @@ public class MainWindowViewModel : ObservableObject
         }
     }
 }
-
-public class Item
-{
-    //ToDo: Maybe this should also have the last velocity so it can continue to go to the left/right side of conveyor
-    public static MainWindowViewModel MainWindowViewModel;
-    public static int MaxCellNumber;
-    public int X;
-    public int Y;
-    public ConveyorTile ConveyorTile;
-
-    public void DeleteItem()
-    {
-        MainWindowViewModel.Items.Remove(this);
-        ConveyorTile.Items.Remove(this);
-    }
-
-    public (int projectedX, int projectedY, ConveyorTile x) GetNextLocation()
-    {
-
-        var projectedX = X - ConveyorTile.Direction.X;
-        var projectedY = Y - ConveyorTile.Direction.Y;
-
-        var nextConveyorTile = ConveyorTile;
-
-        if (projectedX < 0)
-        {
-            projectedX = MaxCellNumber - 1;
-            nextConveyorTile = ConveyorTile.NextConveyorTile;
-        }
-
-        if (projectedX > MaxCellNumber)
-        {
-            projectedX = 0;
-            nextConveyorTile = ConveyorTile.NextConveyorTile;
-        }
-
-        if (projectedY < 0)
-        {
-            projectedY = MaxCellNumber - 1;
-            nextConveyorTile = ConveyorTile.NextConveyorTile;
-        }
-
-        if (projectedY > MaxCellNumber)
-        {
-            projectedY = 0;
-            nextConveyorTile = ConveyorTile.NextConveyorTile;
-        }
-
-        return (projectedX, projectedY, nextConveyorTile);
-    }
-}
-
-public class ConveyorTile
-{
-    public (int X, int Y) Direction;
-    public Tile Tile;
-    public List<Item> Items = new();
-    public Conveyor Conveyor;
-    public ConveyorTile NextConveyorTile;
-}
-
-public class Conveyor
-{
-    //ToDo: I need to make it so I can serialize this so it can be saved in a map string.
-    //ToDo: Since this should be part of the map string, it should also be held in State.
-    public int Id;
-    public List<ConveyorTile> ConveyorTile { get; set; } = new();
-    public List<Item> Items = new();
-}
-
-public class Tile
-{
-    public string Name { get; set; }
-    public bool IsPassable;
-    public readonly int Id;
-    internal TileRole TileRole = TileRole.Nothing;
-    public bool IsPartOfSolution;
-    public int X;
-    public int Y;
-    public int ChunkId = -1;
-    public string Description => Name;
-
-    public Tile(int x, int y, bool isPassable, int id)
-    {
-        Id = id;
-        X = x;
-        Y = y;
-        IsPassable = isPassable;
-        Name = $"{x},{y}";
-    }
-}
-
-public enum TileRole { Nothing = 0, Source = 1, Destination = 2, Conveyor = 3 }
-
-public class State
-{
-    public int X;
-    public int Y;
-    private readonly IStatePersistence _sp;
-    private Tile[,] _tileGrid;
-    public List<Tile> Tiles { get; set; } = new();
-    public int TileSize { get; }
-    public Tile[,] TileGrid { get => _tileGrid; set => _tileGrid = value; }
-
-    public State(int x, int y, int tileSize, IStatePersistence sp)
-    {
-        X = x;
-        Y = y;
-        _sp = sp;
-        TileSize = tileSize;
-        TileGrid = new Tile[x, y];
-        SetTiles();
-    }
-
-    private void SetTiles()
-    {
-        var i = 0;
-        for (var x = 0; x < X; x++)
-        {
-            for (var y = 0; y < Y; y++)
-            {
-                var tempTile = new Tile(x, y, true, i++);
-                TileGrid[x, y] = tempTile;
-                Tiles.Add(tempTile);
-            }
-        }
-    }
-
-    public string SetupMapString() => _sp.SetupMapString(ref X, ref Y, ref _tileGrid);
-
-    public (int X, int Y, string[] mapStringArray, bool Success) UploadMapString(string mapString) => _sp.UploadMapString(mapString);
-}
-
