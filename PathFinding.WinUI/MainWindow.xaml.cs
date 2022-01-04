@@ -64,7 +64,7 @@ public sealed partial class MainWindow : Window
 
     public MainWindow()
     {
-        _viewModel = new MainWindowViewModel();
+        ViewModel = CommunityToolkit.Mvvm.DependencyInjection.Ioc.Default.GetService<MainWindowViewModel>();
 
         _metroColors = new()
         {
