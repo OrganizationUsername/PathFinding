@@ -317,7 +317,7 @@ public class MainWindowViewModel : ObservableObject
             if (x > 0) conveyorDirection = (-1, MaxCellNumber);
             if (x < 0) conveyorDirection = (-1, 0);
             if (y > 0) conveyorDirection = (0, -1);
-            if (y < 0) conveyorDirection = (MaxCellNumber, -1);
+            if (y < 0) conveyorDirection = (MaxCellNumber - 1, -1);
             tempTile.IsPassable = false;
             tempTile.TileRole = TileRole.Conveyor;
             conveyor.ConveyorTile.Add(new() { Tile = tempTile, Direction = (X: x, Y: y), Conveyor = conveyor, Lane = conveyorDirection });
@@ -429,23 +429,21 @@ public class MainWindowViewModel : ObservableObject
 
     public void RandomlyAddItem()
     {
-        if (!Conveyors.Any() || Items.Count > 1_000 /*|| _rand.NextDouble() > 0.9*/) { return; }
+        if (!Conveyors.Any() || Items.Count > 000 /*|| _rand.NextDouble() > 0.9*/) { return; }
 
         var conveyorIndex = _rand.Next(0, 1);//Conveyors.Count);
         var conveyor = Conveyors[conveyorIndex];
         var conveyorTile = conveyor.ConveyorTile.First();
         if (conveyorTile.Items.Any()) return;
-        var X = _rand.NextDouble() > 0.5 ? 0 : MaxCellNumber - 1;
-        var Y = _rand.NextDouble() > 0.5 ? 0 : MaxCellNumber - 1;
-
-
+        var x = _rand.NextDouble() > 0.5 ? 0 : MaxCellNumber - 1;
+        var y = _rand.NextDouble() > 0.5 ? 0 : MaxCellNumber - 1;
         var item = new Item()
         {
-            X = X,
-            Y = Y,
+            X = x,
+            Y = y,
             ConveyorTile = conveyorTile,
             Inertia = (conveyorTile.Direction.X, conveyorTile.Direction.Y),
-            Left = X == conveyorTile.Lane.X || Y == conveyorTile.Lane.Y
+            Left = x == conveyorTile.Lane.X || y == conveyorTile.Lane.Y
         };
         conveyorTile.Items.Add(item);
         conveyor.Items.Add(item);

@@ -22,7 +22,7 @@ public class Item
 
     public (int projectedX, int projectedY, ConveyorTile x) GetNextLocation()
     {
-
+        //so on the left when going from +x to +y, it's too far to the right by 1.
         var nextConveyorTile = ConveyorTile;
         Trace.WriteLine($"Left is {Left}. Inertia is {Inertia}");
         Trace.WriteLine($"Item is: ({X},{Y}).Next lane is: {ConveyorTile.Lane}. ConveyorTileLane is {ConveyorTile.Lane}.");
@@ -30,7 +30,7 @@ public class Item
         {
             if (Inertia != nextConveyorTile.Direction)
             {
-                
+
                 Trace.WriteLine($"Changed direction from {Inertia} to {nextConveyorTile.Direction}.");
                 Inertia = nextConveyorTile.Direction;
             }
