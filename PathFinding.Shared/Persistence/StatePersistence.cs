@@ -2,7 +2,7 @@
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
-using PathFinding.Models;
+using PathFinding.Shared.Models;
 
 namespace PathFinding.Persistence;
 

@@ -25,8 +25,8 @@ using Key = Windows.System.VirtualKey;
 using WriteableBitmap = Microsoft.UI.Xaml.Media.Imaging.WriteableBitmap;
 using System.Numerics;
 using Microsoft.Graphics.Canvas.Geometry;
-using PathFinding.ViewModels;
-using PathFinding.Models;
+using PathFinding.Shared.Models;
+using PathFinding.Shared.ViewModels;
 
 namespace Pathfinding.WinUI;
 

@@ -2,7 +2,7 @@
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using PathFinding.Persistence;
-using PathFinding.ViewModels;
+using PathFinding.Shared.ViewModels;
 
 namespace PathFinding
 {

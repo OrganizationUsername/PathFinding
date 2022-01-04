@@ -1,6 +1,6 @@
 ﻿using PathFinding.Persistence;
 
-namespace PathFinding.Models;
+namespace PathFinding.Shared.Models;
 
 public class State
 {
