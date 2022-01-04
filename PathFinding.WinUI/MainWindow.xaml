@@ -41,6 +41,7 @@
                         </StackPanel>
                         <TextBlock Text="{x:Bind sys:String.Format('Current Player: {0}', ViewModel.CurrentPlayer), Mode=OneWay}" />
                         <TextBlock Text="{x:Bind sys:String.Format('FPS: {0}', ViewModel.Fps), Mode=OneWay}" />
+                        <TextBlock Text="{x:Bind sys:String.Format('Frame time: {0}ms', FrameTime), Mode=OneWay}" />
                         <TextBlock Text="{x:Bind sys:String.Format('Tiles scored: {0}', ViewModel.CellsScored), Mode=OneWay}" />
                     </StackPanel>
                 </TabViewItem>

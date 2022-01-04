@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
-using CommunityToolkit.Mvvm.ComponentModel;
+using System.Numerics;
 using Microsoft.UI;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
@@ -13,20 +13,18 @@ using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.Graphics.Canvas.Geometry;
 using Microsoft.Graphics.Canvas;
 using Microsoft.Graphics.Canvas.Text;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using CommunityToolkit.Mvvm.ComponentModel;
 using PathFinding.Core;
-
+using PathFinding.Shared.Models;
+using PathFinding.Shared.ViewModels;
 
 using Color = Windows.UI.Color;
 using Key = Windows.System.VirtualKey;
-using WriteableBitmap = Microsoft.UI.Xaml.Media.Imaging.WriteableBitmap;
-using System.Numerics;
-using Microsoft.Graphics.Canvas.Geometry;
-using PathFinding.Shared.Models;
-using PathFinding.Shared.ViewModels;
 
 namespace Pathfinding.WinUI;
 
@@ -39,6 +37,7 @@ public sealed partial class MainWindow : Window
         get => _viewModel;
         set => SetProperty(ref _viewModel, value);
     }
+    [ObservableProperty] private int _frameTime;
 
     public MainWindowViewModel Vm => _viewModel;
 
@@ -135,6 +134,8 @@ public sealed partial class MainWindow : Window
                 Windows.Graphics.DirectX.DirectXPixelFormat.B8G8R8A8UIntNormalized,
                 2,
                 CanvasAlphaMode.Ignore);
+
+            swapChainPanel.SwapChain = _swapChain;
         }
         else
         {
@@ -145,8 +146,6 @@ public sealed partial class MainWindow : Window
                 Windows.Graphics.DirectX.DirectXPixelFormat.B8G8R8A8UIntNormalized,
                 2);
         }
-
-        swapChainPanel.SwapChain = _swapChain;
     }
 
     private async void CompositionTarget_Rendering(object sender, object e)
@@ -170,7 +169,8 @@ public sealed partial class MainWindow : Window
             RenderCostTextOverlay(ds, Vm.AnswerCells);
         }
 
-        _swapChain.Present(0);
+        _swapChain.Present(1);
+        FrameTime = (DateTime.Now - dt).Milliseconds;
     }
 
     //private void CheckKeys()
@@ -213,8 +213,8 @@ public sealed partial class MainWindow : Window
 
         var minX = Math.Max(0, LeftX / TileSize - 1);
         var minY = Math.Max(0, TopY / TileSize - 1);
-        var maxX = Math.Min(Vm.State.X, minX + Vm.PixelWidth / TileSize + 2);
-        var maxY = Math.Min(Vm.State.Y, minY + Vm.PixelHeight / TileSize + 2);
+        var maxX = Math.Min(Vm.State.X, minX + Vm.PixelWidth / TileSize + 3);
+        var maxY = Math.Min(Vm.State.Y, minY + Vm.PixelHeight / TileSize + 3);
 
         for (var x = minX; x < maxX; x++)
         {
@@ -304,7 +304,7 @@ public sealed partial class MainWindow : Window
                 var leftPixel = tile.X * TileSize + partialTile * item.X;
                 var topPixel = tile.Y * TileSize + partialTile * item.Y;
                 var rect = new Rect(leftPixel - LeftX, topPixel - TopY, partialTile, partialTile);
-                ds.DrawRectangle(rect, Colors.SaddleBrown);
+                ds.DrawRectangle(rect, item.Left ? Colors.SaddleBrown : Colors.DeepPink);
             }
         }
 
