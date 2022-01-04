@@ -9,10 +9,11 @@ https://user-images.githubusercontent.com/9743612/147899948-1f15f4f1-e0a3-44f0-9
 
 ## Features
 Paths may be found.
+Conveyor belts with 1/2 lanes are possible.
 
 ## TODO
 - maybe provide a legend for the different funny graphic things.
-- Make conveyor belts better.
+- Make conveyor belts connect better.
 - Write some instructions
 - Thin walls
 - Undo/Redo
