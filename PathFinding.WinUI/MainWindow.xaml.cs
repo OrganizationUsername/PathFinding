@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
-using CommunityToolkit.Mvvm.ComponentModel;
+using System.Numerics;
 using Microsoft.UI;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
@@ -13,20 +13,18 @@ using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.Graphics.Canvas.Geometry;
 using Microsoft.Graphics.Canvas;
 using Microsoft.Graphics.Canvas.Text;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using CommunityToolkit.Mvvm.ComponentModel;
 using PathFinding.Core;
-
+using PathFinding.Shared.Models;
+using PathFinding.Shared.ViewModels;
 
 using Color = Windows.UI.Color;
 using Key = Windows.System.VirtualKey;
-using WriteableBitmap = Microsoft.UI.Xaml.Media.Imaging.WriteableBitmap;
-using System.Numerics;
-using Microsoft.Graphics.Canvas.Geometry;
-using PathFinding.Shared.Models;
-using PathFinding.Shared.ViewModels;
 
 namespace Pathfinding.WinUI;
 
@@ -39,6 +37,7 @@ public sealed partial class MainWindow : Window
         get => _viewModel;
         set => SetProperty(ref _viewModel, value);
     }
+    [ObservableProperty] private int _frameTime;
 
     public MainWindowViewModel Vm => _viewModel;
 
@@ -65,7 +64,7 @@ public sealed partial class MainWindow : Window
 
     public MainWindow()
     {
-        _viewModel = new MainWindowViewModel();
+        ViewModel = CommunityToolkit.Mvvm.DependencyInjection.Ioc.Default.GetService<MainWindowViewModel>();
 
         _metroColors = new()
         {
@@ -101,13 +100,13 @@ public sealed partial class MainWindow : Window
 
     private CanvasGeometry[] CreateConveyorTriangles()
     {
-        int a = 5;
-        int b = 10;
+        var a = Vm.TileSize / 2f;
+        var b = Vm.TileSize;
 
         return new CanvasGeometry[]
         {
-            CreateTriangle(new(a, 0), new(0, a), new(a, b)),  // Left
-            CreateTriangle(new(a, 0), new(b, a), new(a, b)),  // Right
+            CreateTriangle(new(0, 0), new(0, b), new(-a, a)),  // Left
+            CreateTriangle(new(0, 0), new(0, b), new(a, a)),  // Right
             CreateTriangle(new(0, 0), new(b, 0), new(a, a)),  // Up
             CreateTriangle(new(0, 0), new(b, 0), new(a, -a)), // Down
         };
@@ -135,6 +134,8 @@ public sealed partial class MainWindow : Window
                 Windows.Graphics.DirectX.DirectXPixelFormat.B8G8R8A8UIntNormalized,
                 2,
                 CanvasAlphaMode.Ignore);
+
+            swapChainPanel.SwapChain = _swapChain;
         }
         else
         {
@@ -145,8 +146,6 @@ public sealed partial class MainWindow : Window
                 Windows.Graphics.DirectX.DirectXPixelFormat.B8G8R8A8UIntNormalized,
                 2);
         }
-
-        swapChainPanel.SwapChain = _swapChain;
     }
 
     private async void CompositionTarget_Rendering(object sender, object e)
@@ -170,7 +169,8 @@ public sealed partial class MainWindow : Window
             RenderCostTextOverlay(ds, Vm.AnswerCells);
         }
 
-        _swapChain.Present(0);
+        _swapChain.Present(1);
+        FrameTime = (DateTime.Now - dt).Milliseconds;
     }
 
     //private void CheckKeys()
@@ -213,22 +213,30 @@ public sealed partial class MainWindow : Window
 
         var minX = Math.Max(0, LeftX / TileSize - 1);
         var minY = Math.Max(0, TopY / TileSize - 1);
-        var maxX = Math.Min(Vm.State.X, minX + Vm.PixelWidth / TileSize + 2);
-        var maxY = Math.Min(Vm.State.Y, minY + Vm.PixelHeight / TileSize + 2);
+        var maxX = Math.Min(Vm.State.X, minX + Vm.PixelWidth / TileSize + 3);
+        var maxY = Math.Min(Vm.State.Y, minY + Vm.PixelHeight / TileSize + 3);
 
         for (var x = minX; x < maxX; x++)
         {
             for (var y = minY; y < maxY; y++)
             {
                 var tile = Vm.State.TileGrid[x, y];
-                if ((tile.X + 1) * TileSize - LeftX < 0 || tile.X * TileSize - LeftX > Vm.PixelWidth || (tile.Y + 1) * TileSize - TopY < 0 || tile.Y * TileSize - TopY > Vm.PixelHeight) continue;
+                if ((tile.X + 1) * TileSize - LeftX < 0 || tile.X * TileSize - LeftX > Vm.PixelWidth || (tile.Y + 1) * TileSize - TopY < 0 || tile.Y * TileSize - TopY > Vm.PixelHeight)
+                    continue;
+
                 Color color;
                 if (tile.IsPassable)
                 {
                     color = tile.ChunkId == -1 ? Colors.LightBlue : _metroColors[tile.ChunkId % _metroColors.Count];
                     if (Vm.EntitiesToHighlight.Contains(tile)) { color = Colors.Peru; }
                 }
-                else { color = Colors.DarkGray; }
+                else
+                {
+                    color = Colors.DarkGray;
+                }
+
+                if (tile.TileRole == TileRole.Conveyor)
+                    color = Colors.LightBlue;
 
                 var cellRect = new Rect(tile.X * TileSize + 1 - LeftX, tile.Y * TileSize + 1 - TopY, TileSize - 1, TileSize - 1);
                 ds.FillRectangle(cellRect, color);
@@ -255,6 +263,38 @@ public sealed partial class MainWindow : Window
             }
         }
 
+        using (var conveyorLayer = ds.CreateLayer(0.6f))
+        {
+            ds.Transform = Matrix3x2.CreateScale(Vm.TileSize / 10f);
+
+            for (var i = 0; i < Vm.Conveyors.Count; i++)
+            {
+                var conveyor = Vm.Conveyors[i];
+                var color = _metroColors[i % _metroColors.Count];
+                for (var index = 0; index < conveyor.ConveyorTile.Count; index++)
+                {
+                    var cell = conveyor.ConveyorTile[index].Tile;
+
+                    var (x, y) = conveyor.ConveyorTile[index].Direction;
+                    (CanvasGeometry geometry, float dx, float dy) triangle = (x, y) switch
+                    {
+                        (1, 0) => (_triangles[0], TileSize / 2f, 0f),
+                        (-1, 0) => (_triangles[1], TileSize / 2f, 0f),
+                        (0, -1) => (_triangles[2], 0f, TileSize / 2f),
+                        (0, 1) => (_triangles[3], 0f, TileSize / 2f),
+                        _ => (null, 0f, 0f)
+                    };
+
+                    if (triangle.geometry is null)
+                        continue;
+
+                    ds.FillGeometry(triangle.geometry, new Vector2(Unscale(cell.X * TileSize + 1 - LeftX + triangle.dx), Unscale(cell.Y * TileSize + 1 - TopY + triangle.dy)), color);
+                }
+            }
+        }
+
+        ds.Transform = Matrix3x2.Identity;
+
         var partialTile = TileSize / Vm.MaxCellNumber;
         foreach (var item in Vm.Items)
         {
@@ -264,59 +304,11 @@ public sealed partial class MainWindow : Window
                 var leftPixel = tile.X * TileSize + partialTile * item.X;
                 var topPixel = tile.Y * TileSize + partialTile * item.Y;
                 var rect = new Rect(leftPixel - LeftX, topPixel - TopY, partialTile, partialTile);
-                ds.DrawRectangle(rect, Colors.Brown);
+                ds.DrawRectangle(rect, item.Left ? Colors.SaddleBrown : Colors.DeepPink);
             }
         }
 
-        for (var i = 0; i < Vm.Conveyors.Count; i++)
-        {
-            var conveyor = Vm.Conveyors[i];
-            var color = _metroColors[i % _metroColors.Count];
-            for (var index = 0; index < conveyor.ConveyorTile.Count; index++)
-            {
-                var cell = conveyor.ConveyorTile[index].Tile;
-
-                var (x, y) = conveyor.ConveyorTile[index].Direction;
-                var triangle = (x, y) switch
-                {
-                    (1, 0) => _triangles[0],
-                    (-1, 0) => _triangles[1],
-                    (0, -1) => _triangles[2],
-                    (0, 1) => _triangles[3],
-                    _ => null
-                };
-
-                if (triangle is null)
-                    continue;
-
-                ds.DrawGeometry(triangle, new Vector2(cell.X * TileSize + 1 - LeftX, cell.Y * TileSize + 1 - TopY), color);
-
-                //if (x == 0 && y == 0)
-                //{
-                //    //var conveyerRect = new Rect(cell.X * TileSize + 1 - LeftX, cell.Y * TileSize + 1 - TopY, TileSize - 1, TileSize - 1);
-                //    //ds.DrawRectangle(conveyerRect, Colors.Gray);
-                //    continue;
-                //}
-                //if (x != 0)
-                //{
-                //    //ds.DrawGeometry(_triangles[0], Colors.Green);
-                //    ds.DrawGeometry(_triangles[0], new Vector2(cell.X * TileSize + 1 - LeftX, cell.Y * TileSize + 1 - TopY), Colors.Green);
-                //    //Wb.FillTriangle(
-                //    //    cell.X * TileSize + TileSize / 2 - LeftX, cell.Y * TileSize - TopY + 1,
-                //    //    cell.X * TileSize + TileSize / 2 - LeftX, (cell.Y + 1) * TileSize - TopY - 1,
-                //    //    -LeftX + ((x > 0) ? cell.X * TileSize + 1 : (cell.X + 1) * TileSize - 1),
-                //    //    cell.Y * TileSize + TileSize / 2 - TopY, color);
-                //}
-                //else
-                //{
-                //    //Wb.FillTriangle(
-                //    //    cell.X * TileSize - LeftX + 1, cell.Y * TileSize + TileSize / 2 - TopY,
-                //    //    (cell.X + 1) * TileSize - LeftX - 1, cell.Y * TileSize + TileSize / 2 - TopY,
-                //    //    cell.X * TileSize + TileSize / 2 - LeftX,
-                //    //    -TopY + (y > 0 ? cell.Y * TileSize + 1 : (cell.Y + 1) * TileSize) - 1, color);
-                //}
-            }
-        }
+        float Unscale(float x) => x / (Vm.TileSize / 10f);
     }
 
     private void RenderCostTextOverlay(CanvasDrawingSession ds, Cell[,] cellCosts)

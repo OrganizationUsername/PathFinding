@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Windows;
+using CommunityToolkit.Mvvm.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using PathFinding.Persistence;
 using PathFinding.Shared.ViewModels;
@@ -27,7 +28,11 @@ namespace PathFinding
 
             services.AddSingleton<IStatePersistence, StatePersistence>();
             services.AddSingleton<MainWindowViewModel, MainWindowViewModel>();
-            return services.BuildServiceProvider();
+
+            var serviceProvider = services.BuildServiceProvider();
+            Ioc.Default.ConfigureServices(serviceProvider);
+
+            return serviceProvider;
         }
     }
 }

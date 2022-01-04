@@ -44,7 +44,7 @@ public partial class MainWindow
 
     public MainWindow()
     {
-        Vm = new MainWindowViewModel();
+        Vm = CommunityToolkit.Mvvm.DependencyInjection.Ioc.Default.GetService<MainWindowViewModel>();
         Wb = new(Vm.PixelWidth, Vm.PixelHeight, 96, 96, PixelFormats.Bgra32, null);
 
         InitializeComponent();

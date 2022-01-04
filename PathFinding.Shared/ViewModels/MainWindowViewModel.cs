@@ -57,8 +57,10 @@ public class MainWindowViewModel : ObservableObject
     public RelayCommand ResetCommand { get; set; }
     public AsyncRelayCommand<bool> ChangeDiagonalCommand { get; }
 
-    public MainWindowViewModel(/*long ms*/ /*IStatePersistence statePersistence*/)
+    public MainWindowViewModel(IStatePersistence statePersistence)
     {
+        Sp = statePersistence;
+
         PlayerCount = 3;
 
         for (var i = 1; i <= PlayerCount; i++) { PlayerDictionary.Add(i, (null, null)); }
@@ -71,7 +73,6 @@ public class MainWindowViewModel : ObservableObject
         TileHeight = 20;
         var tileSize = 10;
         TileSize = tileSize;
-        Sp = new StatePersistence();
         State = new(TileWidth, TileHeight, tileSize, Sp);
 
         ResetCommand = new(Reset);

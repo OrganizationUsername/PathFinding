@@ -18,6 +18,7 @@ using Windows.Foundation.Collections;
 using Microsoft.Extensions.DependencyInjection;
 using PathFinding.Persistence;
 using PathFinding.Shared.ViewModels;
+using CommunityToolkit.Mvvm.DependencyInjection;
 
 namespace Pathfinding.WinUI;
 /// <summary>
@@ -25,6 +26,8 @@ namespace Pathfinding.WinUI;
 /// </summary>
 public partial class App : Application
 {
+    private MainWindow _window;
+
     /// <summary>
     /// Initializes the singleton application object.  This is the first line of authored code
     /// executed, and as such is the logical equivalent of main() or WinMain().
@@ -41,11 +44,11 @@ public partial class App : Application
     /// <param name="args">Details about the launch request and process.</param>
     protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
-        m_window = new MainWindow();
-        m_window.Activate();
-    }
+        ConfigureServices();
 
-    private Window m_window;
+        _window = new MainWindow();
+        _window.Activate();
+    }
 
     private static IServiceProvider ConfigureServices()
     {
@@ -53,6 +56,10 @@ public partial class App : Application
 
         services.AddSingleton<IStatePersistence, StatePersistence>();
         services.AddSingleton<MainWindowViewModel, MainWindowViewModel>();
-        return services.BuildServiceProvider();
+
+        var serviceProvider = services.BuildServiceProvider();
+        Ioc.Default.ConfigureServices(serviceProvider);
+
+        return serviceProvider;
     }
 }
