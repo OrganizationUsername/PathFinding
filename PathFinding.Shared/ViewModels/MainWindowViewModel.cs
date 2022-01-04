@@ -52,7 +52,7 @@ public class MainWindowViewModel : ObservableObject
     public List<Item> Items { get; set; } = new();
     public int ItemsCount => Items.Count;
     private int _tickCounter;
-    public readonly int MaxCellNumber = 3;
+    public readonly int MaxCellNumber = 2;
 
     public RelayCommand ResetCommand { get; set; }
     public AsyncRelayCommand<bool> ChangeDiagonalCommand { get; }
@@ -75,11 +75,7 @@ public class MainWindowViewModel : ObservableObject
         State = new(TileWidth, TileHeight, tileSize, Sp);
 
         ResetCommand = new(Reset);
-        ChangeDiagonalCommand = new(async (x) =>
-        {
-            AllowDiagonal = x;
-            await PlayerPathFinding();
-        });
+        ChangeDiagonalCommand = new(async (x) => { AllowDiagonal = x; await PlayerPathFinding(); });
         SetupMapString();
         UploadMapString(@"3972_G4MPKI6UrMG9OgaGZmcAmLpKbFnWit9TRq0AVogGrRYWkQKSyyR9MuH9AenBv5sSeR+axQ4OHRwOESlSJAS5Z9t9tbIp5bwH/db7lgtKvQ3fH/yDCwonLSau8Y5aty1SCrbmxv20+I7bysl9AkepUN0bb8SGsANKLOiJCCOVU9u/PdYBet5gBsp6XKAeo8WuNkoNM9i8x35DUGYmR2HshCll3M4bPrVsPmGmOrfbSlJsVi5AcEMLzgbP00rTOd1HKeRUSX4C8L9Z9J5BfOKtSR8zs44M8O4CnJ34LyKDi1+JtWLy3HcqERkmHi4KuYeEAVZOkn7jlh3Ids0oomZVmhr0uiun2U/QT+4nJNkSyHAzQT3YYiIzDiVYB7yJesuCYk2e3Df2H0LT9zIwdRrIDAGbymDcWdFEvewh74DIswbs9HJiTy4feNxBJYXpdsockTBZH82r/DHk/7rdEm5CteuHA4xBLV4z55I+3SfLdkRAOvlY8Pk2kj0A");
     }
@@ -317,9 +313,14 @@ public class MainWindowViewModel : ObservableObject
             }
 
             var (x, y) = (cell.X - nextCell.X, cell.Y - nextCell.Y);
+            var conveyorDirection = (-1, -1);
+            if (x > 0) conveyorDirection = (-1, MaxCellNumber);
+            if (x < 0) conveyorDirection = (-1, 0);
+            if (y > 0) conveyorDirection = (0, -1);
+            if (y < 0) conveyorDirection = (MaxCellNumber, -1);
             tempTile.IsPassable = false;
             tempTile.TileRole = TileRole.Conveyor;
-            conveyor.ConveyorTile.Add(new() { Tile = tempTile, Direction = (X: x, Y: y), Conveyor = conveyor });
+            conveyor.ConveyorTile.Add(new() { Tile = tempTile, Direction = (X: x, Y: y), Conveyor = conveyor, Lane = conveyorDirection });
         }
 
         for (var index = 0; index < conveyor.ConveyorTile.Count; index++)
@@ -428,12 +429,24 @@ public class MainWindowViewModel : ObservableObject
 
     public void RandomlyAddItem()
     {
-        if (!Conveyors.Any() || Items.Count > 1000 /*|| _rand.NextDouble() > 0.9*/) { return; }
-        var conveyorIndex = _rand.Next(0, Conveyors.Count);
+        if (!Conveyors.Any() || Items.Count > 1_000 /*|| _rand.NextDouble() > 0.9*/) { return; }
+
+        var conveyorIndex = _rand.Next(0, 1);//Conveyors.Count);
         var conveyor = Conveyors[conveyorIndex];
         var conveyorTile = conveyor.ConveyorTile.First();
         if (conveyorTile.Items.Any()) return;
-        var item = new Item() { X = _rand.Next(0, MaxCellNumber), Y = _rand.Next(0, MaxCellNumber), ConveyorTile = conveyorTile };
+        var X = _rand.NextDouble() > 0.5 ? 0 : MaxCellNumber - 1;
+        var Y = _rand.NextDouble() > 0.5 ? 0 : MaxCellNumber - 1;
+
+
+        var item = new Item()
+        {
+            X = X,
+            Y = Y,
+            ConveyorTile = conveyorTile,
+            Inertia = (conveyorTile.Direction.X, conveyorTile.Direction.Y),
+            Left = X == conveyorTile.Lane.X || Y == conveyorTile.Lane.Y
+        };
         conveyorTile.Items.Add(item);
         conveyor.Items.Add(item);
         Items.Add(item);

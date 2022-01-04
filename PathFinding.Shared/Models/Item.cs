@@ -1,4 +1,5 @@
-﻿using PathFinding.Shared.ViewModels;
+﻿using System.Diagnostics;
+using PathFinding.Shared.ViewModels;
 
 namespace PathFinding.Shared.Models;
 
@@ -9,7 +10,9 @@ public class Item
     public static int MaxCellNumber;
     public int X;
     public int Y;
+    public (int X, int Y) Inertia;
     public ConveyorTile ConveyorTile;
+    public bool Left;
 
     public void DeleteItem()
     {
@@ -20,10 +23,21 @@ public class Item
     public (int projectedX, int projectedY, ConveyorTile x) GetNextLocation()
     {
 
-        var projectedX = X - ConveyorTile.Direction.X;
-        var projectedY = Y - ConveyorTile.Direction.Y;
-
         var nextConveyorTile = ConveyorTile;
+        Trace.WriteLine($"Left is {Left}. Inertia is {Inertia}");
+        Trace.WriteLine($"Item is: ({X},{Y}).Next lane is: {ConveyorTile.Lane}. ConveyorTileLane is {ConveyorTile.Lane}.");
+        if ((Left && (X == nextConveyorTile.Lane.X || Y == nextConveyorTile.Lane.Y)) || (!Left && (X == MaxCellNumber - nextConveyorTile.Lane.X - 1 || Y == MaxCellNumber - nextConveyorTile.Lane.Y - 1)))
+        {
+            if (Inertia != nextConveyorTile.Direction)
+            {
+                
+                Trace.WriteLine($"Changed direction from {Inertia} to {nextConveyorTile.Direction}.");
+                Inertia = nextConveyorTile.Direction;
+            }
+        }
+
+        var projectedX = X - Inertia.X;
+        var projectedY = Y - Inertia.Y;
 
         if (projectedX < 0)
         {

@@ -135,7 +135,7 @@ public partial class MainWindow
             }
         }
 
-        var partialTile = TileSize / Vm.MaxCellNumber;
+        var partialTile = TileSize / Math.Max(1, Vm.MaxCellNumber);
         for (var i = 0; i < Vm.Conveyors.Count; i++)
         {
             var conveyor = Vm.Conveyors[i];
@@ -173,7 +173,7 @@ public partial class MainWindow
             {
                 var leftPixel = tile.X * TileSize + partialTile * item.X;
                 var topPixel = tile.Y * TileSize + partialTile * item.Y;
-                Wb.FillRectangle(leftPixel - LeftX, topPixel - TopY, leftPixel + partialTile - LeftX, topPixel + partialTile - TopY, Colors.SaddleBrown);
+                Wb.FillRectangle(leftPixel - LeftX, topPixel - TopY, leftPixel + partialTile - LeftX, topPixel + partialTile - TopY, item.Left ? Colors.SaddleBrown : Colors.DeepPink);
             }
         }
 
@@ -254,7 +254,7 @@ public partial class MainWindow
         await Vm.HandleLeftClick(point);
     }
 
-    private void UIElement_OnMouseRightButtonDown(object sender, MouseButtonEventArgs e) => 
+    private void UIElement_OnMouseRightButtonDown(object sender, MouseButtonEventArgs e) =>
         Vm.HandleRightClick(PointToVector(e.GetPosition(sender as Image)));
 
     private void TextImage_OnMouseWheel(object sender, MouseWheelEventArgs e)
