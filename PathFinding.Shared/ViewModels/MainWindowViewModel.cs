@@ -315,7 +315,7 @@ public class MainWindowViewModel : ObservableObject
 
             var (x, y) = (cell.X - nextCell.X, cell.Y - nextCell.Y);
             var conveyorDirection = (-1, -1);
-            if (x > 0) conveyorDirection = (-1, MaxCellNumber);
+            if (x > 0) conveyorDirection = (-1, MaxCellNumber - 1);
             if (x < 0) conveyorDirection = (-1, 0);
             if (y > 0) conveyorDirection = (0, -1);
             if (y < 0) conveyorDirection = (MaxCellNumber - 1, -1);
@@ -355,30 +355,6 @@ public class MainWindowViewModel : ObservableObject
         //foreach (var co in Conveyors) { /*I suck at debug with nulls.*/ Trace.WriteLine($"ConveyorID: {co.Id}" + string.Join("=> ", co.ConveyorTile.Select(x => $"({x.Tile.X},{x.Tile.Y}) to ({x.NextConveyorTile?.Tile.X ?? -1},{x.NextConveyorTile?.Tile.Y ?? -1})"))); }
 
         await PlayerPathFinding();
-
-        /*
-        https://enzisoft.wordpress.com/2016/03/12/factorio-in-unityc-goal-reached/ 
-        https://www.factorio.com/blog/post/fff-148
-        https://docs.flexsim.com/en/19.2/ConnectingFlows/Conveyors/CreatingConveyorLogic/
-        https://github.com/Club559/FactoryMod/tree/master/FactoryMan/Items
-        https://github.com/taku686/BeltConveyor
-        https://github.com/skulifh/conveyor_belt_simulator/blob/master/G12-Robust-Software-Systems/Simulation/Initiator.cs 
-
-        We should probably have a list of conveyors.
-        but maybe it should be saved in state.
-        So we have two temp spaces
-        When the second one is filled, we create a conveyor segment according to a path. If no path exists, abandon.
-        Later on I need to have stairs that go over the conveyor so people can get over it.
-        That will probably be a bit troublesome. It means that I have to add something else to the path-finding, since right now I only have a list of paths that substitute from a cell. I would need supplemental.
-        What if conveyors can also be elevated so humans could walk past it?
-        Then I also need to spawn items on the conveyor. 
-        A finished conveyor has an ordered list of tiles. Maybe also references to items on it. 
-        I guess tiles also need to have a list of conveyorTiles.
-        I also need to have a direction for each of them.
-        In the end, a conveyor should be composed of segments.
-        Rotating items as they go around bends should be fun.
-        I also need to think about how this will run on a server. (timeStep Event = any item leaving/entering conveyor/segment)
-        */
     }
 
     private async Task HandleRightClickPlayerMode(Tile tile)
@@ -430,9 +406,9 @@ public class MainWindowViewModel : ObservableObject
 
     public void RandomlyAddItem()
     {
-        if (!Conveyors.Any() || Items.Count > 000 /*|| _rand.NextDouble() > 0.9*/) { return; }
+        if (!Conveyors.Any() || Items.Count > 100 || _rand.NextDouble() > 0.1) { return; }
 
-        var conveyorIndex = _rand.Next(0, 1);//Conveyors.Count);
+        var conveyorIndex = _rand.Next(0, Conveyors.Count);
         var conveyor = Conveyors[conveyorIndex];
         var conveyorTile = conveyor.ConveyorTile.First();
         if (conveyorTile.Items.Any()) return;
