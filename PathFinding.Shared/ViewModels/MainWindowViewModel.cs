@@ -8,7 +8,7 @@ using Point = System.Numerics.Vector2;
 
 namespace PathFinding.Shared.ViewModels;
 
-public enum ClickMode { Player = 0, Conveyor = 1 }
+public enum ClickMode { Player = 0, Conveyor = 1, Item = 2 } //ToDo: make it so this can be cycled through. {%(ClickMode.Max+1)}. 
 
 public class MainWindowViewModel : ObservableObject
 {
@@ -54,6 +54,7 @@ public class MainWindowViewModel : ObservableObject
     public int ItemsCount => Items.Count;
     private int _tickCounter;
     public readonly int MaxCellNumber = 2;
+    public int _maxClickMode = Enum.GetValues(typeof(ClickMode)).Cast<int>().Max();
 
     public RelayCommand ResetCommand { get; set; }
     public AsyncRelayCommand<bool> ChangeDiagonalCommand { get; }
@@ -111,6 +112,8 @@ public class MainWindowViewModel : ObservableObject
                 await TryFlipElement(tile); return;
             case ClickMode.Conveyor:
                 break;
+            case ClickMode.Item:
+                break;
             default:
                 throw new ArgumentOutOfRangeException();
         }
@@ -128,6 +131,8 @@ public class MainWindowViewModel : ObservableObject
                 break;
             case ClickMode.Conveyor:
                 await HandleRightClickAddConveyorNode(tile);
+                break;
+            case ClickMode.Item:
                 break;
             default:
                 throw new ArgumentOutOfRangeException();
@@ -241,8 +246,8 @@ public class MainWindowViewModel : ObservableObject
             if (solution.SolutionCells is null || !solution.SolutionCells.Any() || solution.thisDate != LastRequestedPathFind) continue;
 
             Trace.WriteLine($"{solution.TimeToSolve}ms to solve ({source.X},{source.Y}) to ({source.X},{destination.Y}).");
-            
-            
+
+
             foreach (var cell in solution.SolutionCells)
             {
                 SolutionDictionary[key].Add((cell.X, cell.Y));

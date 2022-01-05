@@ -12,14 +12,12 @@ namespace PathFinding
     /// </summary>
     public partial class App : Application
     {
-
         public IServiceProvider Services { get; }
 
         public App()
         {
             Services = ConfigureServices();
-
-            this.InitializeComponent();
+            InitializeComponent();
         }
 
         private static IServiceProvider ConfigureServices()

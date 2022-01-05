@@ -66,7 +66,7 @@ public partial class MainWindow
     {
         if (Keyboard.FocusedElement is not TextBox) { foreach (var kvp in _numberKeys) { if (Keyboard.IsKeyDown(kvp.Key)) { Vm.CurrentPlayer = Math.Min(kvp.Value, Vm.PlayerCount); } } }
         if (Keyboard.FocusedElement is not TextBox) { foreach (var kvp in _movementKeys) { if (Keyboard.IsKeyDown(kvp.Key)) { Vm.Left += 10 * kvp.Value.X; Vm.Top += 10 * kvp.Value.Y; DrawCostText(_cellBackup); } } }
-        if (Keyboard.FocusedElement is not TextBox) { if (Keyboard.IsKeyDown(Key.C) && !LastPressedKeys.Contains(Key.C)) { Vm.ClickMode = 1 - Vm.ClickMode; LastPressedKeys.Add(Key.C); } }
+        if (Keyboard.FocusedElement is not TextBox) { if (Keyboard.IsKeyDown(Key.C) && !LastPressedKeys.Contains(Key.C)) { Vm.ClickMode = (PathFinding.Shared.ViewModels.ClickMode)(((int)Vm.ClickMode + 1) % (Vm._maxClickMode + 1)); LastPressedKeys.Add(Key.C); } }
         if (Keyboard.FocusedElement is not TextBox) { if (Keyboard.IsKeyDown(Key.Space) && !LastPressedKeys.Contains(Key.Space)) { Vm.Paused = !Vm.Paused; LastPressedKeys.Add(Key.Space); } };
         if (!Keyboard.IsKeyDown(Key.C) && LastPressedKeys.Contains(Key.C)) LastPressedKeys.Remove(Key.C);
         if (!Keyboard.IsKeyDown(Key.Space) && LastPressedKeys.Contains(Key.Space)) LastPressedKeys.Remove(Key.Space);
