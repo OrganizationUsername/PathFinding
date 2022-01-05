@@ -44,6 +44,7 @@ public class MainWindowViewModel : ObservableObject
     private int _currentPlayer = 1;
     public int CurrentPlayer { get => _currentPlayer; set => SetProperty(ref _currentPlayer, value); }
     public Dictionary<int, (Tile Source, Tile Destination)> PlayerDictionary = new();
+    public Dictionary<int, List<(int, int)>> SolutionDictionary = new();
     private bool _allowDiagonal = true;
     public int PlayerCount { get; set; }
     public ClickMode ClickMode { get; set; } = ClickMode.Player;
@@ -64,6 +65,7 @@ public class MainWindowViewModel : ObservableObject
         PlayerCount = 3;
 
         for (var i = 1; i <= PlayerCount; i++) { PlayerDictionary.Add(i, (null, null)); }
+        for (var i = 1; i <= PlayerCount; i++) { SolutionDictionary.Add(i, new()); }
 
         Item.MainWindowViewModel = this;
         Item.MaxCellNumber = MaxCellNumber;
@@ -145,6 +147,7 @@ public class MainWindowViewModel : ObservableObject
             AnswerCells = null;
             PlayerDictionary.Clear();
             for (var i = 1; i <= PlayerCount; i++) { PlayerDictionary.Add(i, (null, null)); }
+            for (var i = 1; i <= PlayerCount; i++) { SolutionDictionary.Add(i, new()); }
         }
     }
 
@@ -223,14 +226,13 @@ public class MainWindowViewModel : ObservableObject
         var requestDate = DateTime.Now;
         LastRequestedPathFind = requestDate;
 
-        foreach (var tile in State.TileGrid) { tile.IsPartOfSolution = false; }
-
         var keys = PlayerDictionary.Keys.ToArray();
         var notableCount = 0;
         for (var index = 0; index < keys.Length; index++)
         {
             var key = keys[index];
             var (source, destination) = PlayerDictionary[key];
+            SolutionDictionary[key].Clear();
 
             if (destination is null || source is null) { continue; }
 
@@ -239,15 +241,18 @@ public class MainWindowViewModel : ObservableObject
             if (solution.SolutionCells is null || !solution.SolutionCells.Any() || solution.thisDate != LastRequestedPathFind) continue;
 
             Trace.WriteLine($"{solution.TimeToSolve}ms to solve ({source.X},{source.Y}) to ({source.X},{destination.Y}).");
-
-            foreach (var cell in solution.SolutionCells) { State.TileGrid[cell.X, cell.Y].IsPartOfSolution = true; }
+            
+            
+            foreach (var cell in solution.SolutionCells)
+            {
+                SolutionDictionary[key].Add((cell.X, cell.Y));
+            }
             foreach (var cell in solution.AllCells) { notableCount = (cell.FCost > int.MaxValue / 3) ? notableCount + 1 : notableCount; }
 
             //CellsScored = notableCount; //Wrong at the moment
             //AnswerCells = solution.AllCells; //Wrong at the moment
         }
     }
-
 
     private async Task TryFlipElement(Tile tile)
     {

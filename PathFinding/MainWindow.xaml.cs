@@ -44,7 +44,7 @@ public partial class MainWindow
 
     public MainWindow()
     {
-        Vm = CommunityToolkit.Mvvm.DependencyInjection.Ioc.Default.GetService<MainWindowViewModel>();
+        Vm = CommunityToolkit.Mvvm.DependencyInjection.Ioc.Default.GetService<MainWindowViewModel>()!;
         Wb = new(Vm.PixelWidth, Vm.PixelHeight, 96, 96, PixelFormats.Bgra32, null);
 
         InitializeComponent();
@@ -55,23 +55,11 @@ public partial class MainWindow
         dt.Tick += RenderTickAsync;
         dt.Start();
 
-        _metroColors = new()
-        {
-            (Color)ColorConverter.ConvertFromString("#0039A6")!,
-            (Color)ColorConverter.ConvertFromString("#FF6319")!,
-            (Color)ColorConverter.ConvertFromString("#6CBE45")!,
-            (Color)ColorConverter.ConvertFromString("#996633")!,
-            (Color)ColorConverter.ConvertFromString("#FCCC0A")!,
-            (Color)ColorConverter.ConvertFromString("#EE352E")!,
-            (Color)ColorConverter.ConvertFromString("#00933C")!,
-            (Color)ColorConverter.ConvertFromString("#B933AD")!,
-        };
-
+        _metroColors = new() { (Color)ColorConverter.ConvertFromString("#0039A6")!, (Color)ColorConverter.ConvertFromString("#FF6319")!, (Color)ColorConverter.ConvertFromString("#6CBE45")!, (Color)ColorConverter.ConvertFromString("#996633")!, (Color)ColorConverter.ConvertFromString("#FCCC0A")!, (Color)ColorConverter.ConvertFromString("#EE352E")!, (Color)ColorConverter.ConvertFromString("#00933C")!, (Color)ColorConverter.ConvertFromString("#B933AD")!, };
         _numberKeys = new() { { Key.D1, 1 }, { Key.D2, 2 }, { Key.D3, 3 }, { Key.D4, 4 }, { Key.D5, 5 }, { Key.NumPad1, 1 }, { Key.NumPad2, 2 }, { Key.NumPad3, 3 }, { Key.NumPad4, 4 }, { Key.NumPad5, 5 } };
         _movementKeys = new() { { Key.W, (0, -1) }, { Key.S, (0, 1) }, { Key.A, (-1, 0) }, { Key.D, (1, 0) }, { Key.Up, (0, -1) }, { Key.Down, (0, 1) }, { Key.Left, (-1, 0) }, { Key.Right, (1, 0) } };
 
-        //TODO: What if I got "R" to get a Rectangle you could throw in? "C" for a circle.
-        //Maybe "C" is for conveyor. 
+        //TODO: What if I got "R" to get a Rectangle you could throw in?
     }
 
     private async void RenderTickAsync(object sender, EventArgs e)
@@ -110,30 +98,14 @@ public partial class MainWindow
             {
                 var tile = Vm.State.TileGrid[x, y];
                 if ((tile.X + 1) * TileSize - LeftX < 0 || tile.X * TileSize - LeftX > Vm.PixelWidth || (tile.Y + 1) * TileSize - TopY < 0 || tile.Y * TileSize - TopY > Vm.PixelHeight) continue;
-                Color color;
-                if (tile.IsPassable)
-                {
-                    color = tile.ChunkId == -1 ? Colors.LightBlue : _metroColors[tile.ChunkId % _metroColors.Count];
-                    if (Vm.EntitiesToHighlight.Contains(tile)) { color = Colors.Peru; }
-                }
-                else { color = Colors.DarkGray; }
+                var color = GetTileColor(tile);
 
                 if (tile.TileRole == TileRole.Conveyor) color = Colors.LightBlue;
                 Wb.FillRectangle(tile.X * TileSize + 1 - LeftX, tile.Y * TileSize + 1 - TopY, tile.X * TileSize + TileSize - 1 - LeftX, tile.Y * TileSize + TileSize - 1 - TopY, color);
-
-                if (tile.IsPartOfSolution) { Wb.FillEllipseCentered(tile.X * TileSize + (TileSize / 2 - LeftX), tile.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, Colors.White); }
-
-                //TODO: Replace this switch with just looking up Players that have things that are populated. 
-                switch (tile.TileRole)
-                {
-                    case TileRole.Source: Wb.FillEllipseCentered(tile.X * TileSize + TileSize / 2 - LeftX, tile.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, Colors.Green); continue;
-                    case TileRole.Destination: Wb.FillEllipseCentered(tile.X * TileSize + TileSize / 2 - LeftX, tile.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, Colors.Black); continue;
-                    case TileRole.Nothing: break;
-                    case TileRole.Conveyor: break;
-                    default: throw new ArgumentOutOfRangeException();
-                }
             }
         }
+
+        DrawSolutionCells(minX, maxX, minY, maxY);
 
         var partialTile = TileSize / Math.Max(1, Vm.MaxCellNumber);
         for (var i = 0; i < Vm.Conveyors.Count; i++)
@@ -195,6 +167,43 @@ public partial class MainWindow
         //Trace.WriteLine($"Time to draw everything: {sw.ElapsedMilliseconds}"); //~20
     }
 
+    private void DrawSolutionCells(int minX, int maxX, int minY, int maxY)
+    {
+        foreach (var (i, valueTuples) in Vm.SolutionDictionary)
+        {
+            for (var j = 0; j < valueTuples.Count; j++)
+            {
+                var (x, y) = valueTuples[j];
+
+                if (x < minX || x >= maxX || y < minY || y >= maxY) continue;
+
+                var tile = Vm.State.TileGrid[x, y];
+
+                if (j == 0) { Wb.FillEllipseCentered(tile.X * TileSize + TileSize / 2 - LeftX, tile.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, Colors.Green); continue; }
+                if (j == valueTuples.Count - 1) { Wb.FillEllipseCentered(tile.X * TileSize + TileSize / 2 - LeftX, tile.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, Colors.Black); continue; }
+
+                Wb.FillEllipseCentered(tile.X * TileSize + (TileSize / 2 - LeftX), tile.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, _metroColors[i % _metroColors.Count]);
+            }
+        }
+
+        foreach (var (i, value) in Vm.PlayerDictionary)
+        {
+            if (value.Source is not null) Wb.FillEllipseCentered(value.Source.X * TileSize + TileSize / 2 - LeftX, value.Source.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, Colors.Green);
+            if (value.Destination is not null) { Wb.FillEllipseCentered(value.Destination.X * TileSize + TileSize / 2 - LeftX, value.Destination.Y * TileSize + TileSize / 2 - TopY, BubbleSize, BubbleSize, Colors.Black); }
+        }
+
+    }
+
+    private Color GetTileColor(Tile tile)
+    {
+        if (tile.IsPassable)
+        {
+            if (Vm.EntitiesToHighlight.Contains(tile)) { return Colors.Peru; }
+            return tile.ChunkId == -1 ? Colors.LightBlue : _metroColors[tile.ChunkId % _metroColors.Count];
+        }
+        return Colors.DarkGray;
+    }
+
     private void DrawCostText(Cell[,] cellCosts)
     {
         ClearText();
@@ -254,8 +263,7 @@ public partial class MainWindow
         await Vm.HandleLeftClick(point);
     }
 
-    private void UIElement_OnMouseRightButtonDown(object sender, MouseButtonEventArgs e) =>
-        Vm.HandleRightClick(PointToVector(e.GetPosition(sender as Image)));
+    private void UIElement_OnMouseRightButtonDown(object sender, MouseButtonEventArgs e) => Vm.HandleRightClick(PointToVector(e.GetPosition(sender as Image)));
 
     private void TextImage_OnMouseWheel(object sender, MouseWheelEventArgs e)
     {
