@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Reflection.Metadata.Ecma335;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PathFinding.Core;
@@ -8,7 +9,7 @@ using Point = System.Numerics.Vector2;
 
 namespace PathFinding.Shared.ViewModels;
 
-public enum ClickMode { Player = 0, Conveyor = 1, Item = 2 } //ToDo: make it so this can be cycled through. {%(ClickMode.Max+1)}. 
+public enum ClickMode { Player = 0, Conveyor = 1, Item = 2 }
 
 public class MainWindowViewModel : ObservableObject
 {
@@ -89,6 +90,7 @@ public class MainWindowViewModel : ObservableObject
         GetHoverElements(point);
         if (!Paused)
         {
+            //TickConveyor();
             RandomlyAddItem();
             _tickCounter++;
             if (_tickCounter >= 5)
@@ -414,6 +416,14 @@ public class MainWindowViewModel : ObservableObject
         }
     }
 
+    public void TickConveyor()
+    {
+        foreach (var c in Conveyors)
+        {
+            c.Tick = (c.Tick + 1) % 8;
+        }
+    }
+
     public void RandomlyAddItem()
     {
         if (!Conveyors.Any() || Items.Count > 100 || _rand.NextDouble() > 0.1) { return; }
@@ -445,6 +455,8 @@ public class MainWindowViewModel : ObservableObject
         //Maybe it would be the segment * 10 + (_maxCellNumber * the tile direction (if x=3 and direction = (1,3), then it's the first that would be checked.). I'd look at highest first.
         //ToDo: What if I kept the left and right hand sides separate? Just have to define left/right side of each conveyorTile. If you go from one conveyor to another, left/right isn't respected.
         //ToDo: There's some issue with interlacing conveyors.
+        TickConveyor();
+        return;
         for (var index = 0; index < Items.Count; index++)
         {
             var item = Items[index];

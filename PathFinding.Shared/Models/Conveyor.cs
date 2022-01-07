@@ -7,5 +7,6 @@ public class Conveyor
     public int Id;
     public List<ConveyorTile> ConveyorTile { get; set; } = new();
     public List<Item> Items = new();
+    public int Tick;
 }
 

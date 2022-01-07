@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Threading.Tasks;
 using System.Windows;
@@ -64,12 +65,7 @@ public partial class MainWindow
 
     private async void RenderTickAsync(object sender, EventArgs e)
     {
-        if (Keyboard.FocusedElement is not TextBox) { foreach (var kvp in _numberKeys) { if (Keyboard.IsKeyDown(kvp.Key)) { Vm.CurrentPlayer = Math.Min(kvp.Value, Vm.PlayerCount); } } }
-        if (Keyboard.FocusedElement is not TextBox) { foreach (var kvp in _movementKeys) { if (Keyboard.IsKeyDown(kvp.Key)) { Vm.Left += 10 * kvp.Value.X; Vm.Top += 10 * kvp.Value.Y; DrawCostText(_cellBackup); } } }
-        if (Keyboard.FocusedElement is not TextBox) { if (Keyboard.IsKeyDown(Key.C) && !LastPressedKeys.Contains(Key.C)) { Vm.ClickMode = (PathFinding.Shared.ViewModels.ClickMode)(((int)Vm.ClickMode + 1) % (Vm._maxClickMode + 1)); LastPressedKeys.Add(Key.C); } }
-        if (Keyboard.FocusedElement is not TextBox) { if (Keyboard.IsKeyDown(Key.Space) && !LastPressedKeys.Contains(Key.Space)) { Vm.Paused = !Vm.Paused; LastPressedKeys.Add(Key.Space); } };
-        if (!Keyboard.IsKeyDown(Key.C) && LastPressedKeys.Contains(Key.C)) LastPressedKeys.Remove(Key.C);
-        if (!Keyboard.IsKeyDown(Key.Space) && LastPressedKeys.Contains(Key.Space)) LastPressedKeys.Remove(Key.Space);
+        HandleKeyPress();
 
         Vm.Left = Math.Max(0, Vm.Left); Vm.Top = Math.Max(0, Vm.Top);
 
@@ -92,18 +88,7 @@ public partial class MainWindow
         var maxX = Math.Min(Vm.State.X, minX + Vm.PixelWidth / TileSize + 3);
         var maxY = Math.Min(Vm.State.Y, minY + Vm.PixelHeight / TileSize + 3);
 
-        for (var x = minX; x < maxX; x++)
-        {
-            for (var y = minY; y < maxY; y++)
-            {
-                var tile = Vm.State.TileGrid[x, y];
-                if ((tile.X + 1) * TileSize - LeftX < 0 || tile.X * TileSize - LeftX > Vm.PixelWidth || (tile.Y + 1) * TileSize - TopY < 0 || tile.Y * TileSize - TopY > Vm.PixelHeight) continue;
-                var color = GetTileColor(tile);
-
-                if (tile.TileRole == TileRole.Conveyor) color = Colors.LightBlue;
-                Wb.FillRectangle(tile.X * TileSize + 1 - LeftX, tile.Y * TileSize + 1 - TopY, tile.X * TileSize + TileSize - 1 - LeftX, tile.Y * TileSize + TileSize - 1 - TopY, color);
-            }
-        }
+        DrawTiles(minX, maxX, minY, maxY);
 
         DrawSolutionCells(minX, maxX, minY, maxY);
 
@@ -119,13 +104,38 @@ public partial class MainWindow
 
                 var (x, y) = conveyor.ConveyorTile[index].Direction;
                 if (x == 0 && y == 0) { /*Wb.FillRectangle(cell.X * TileSize + 1 - LeftX, cell.Y * TileSize + 1 - TopY, cell.X * TileSize + TileSize - 1 - LeftX, cell.Y * TileSize + TileSize - 1 - TopY, Colors.Gray);*/ continue; }
+                var leftPosition = cell.X * TileSize - LeftX;
                 if (x != 0)
                 {
-                    Wb.FillTriangle(
-                        cell.X * TileSize + TileSize / 2 - LeftX, cell.Y * TileSize - TopY + 1,
-                        cell.X * TileSize + TileSize / 2 - LeftX, (cell.Y + 1) * TileSize - TopY - 1,
-                        -LeftX + ((x > 0) ? cell.X * TileSize + 1 : (cell.X + 1) * TileSize - 1),
-                        cell.Y * TileSize + TileSize / 2 - TopY, color);
+                    if (x > 0)
+                    {
+                        var length = TileSize * conveyor.Tick / 8;
+                        //Wb.FillRectangle(
+                        //    cell.X * TileSize + 1 - LeftX, cell.Y * TileSize + 1 - TopY,
+                        //    cell.X * TileSize + TileSize - 1 - LeftX, cell.Y * TileSize + TileSize - 1 - TopY, color);
+
+                        Wb.FillTriangle(
+                            leftPosition + TileSize, cell.Y * TileSize - TopY + 1 + length / 2,
+                            leftPosition + TileSize, (cell.Y + 1) * TileSize - TopY - 1 - length / 2,
+                            leftPosition + length, cell.Y * TileSize + TileSize / 2 - TopY, color);
+
+                        Wb.FillQuad(
+                            leftPosition + 000000, (cell.Y + 0) * TileSize - TopY + length / 2,
+                            leftPosition + 000000, (cell.Y + 1) * TileSize - TopY - length / 2,
+                            leftPosition + length, (cell.Y + 1) * TileSize - TopY,
+                            leftPosition + length, (cell.Y + 0) * TileSize - TopY,
+                            color);
+
+
+                    }
+                    else
+                    {
+                        Wb.FillTriangle(
+                            cell.X * TileSize + TileSize / 2 - LeftX, cell.Y * TileSize - TopY + 1,
+                            cell.X * TileSize + TileSize / 2 - LeftX, (cell.Y + 1) * TileSize - TopY - 1,
+                            -LeftX + (cell.X + 1) * TileSize - 1,
+                            cell.Y * TileSize + TileSize / 2 - TopY, color);
+                    }
                 }
                 else
                 {
@@ -167,6 +177,83 @@ public partial class MainWindow
         //Trace.WriteLine($"Time to draw everything: {sw.ElapsedMilliseconds}"); //~20
     }
 
+    private void DrawTiles(int minX, int maxX, int minY, int maxY)
+    {
+        for (var x = minX; x < maxX; x++)
+        {
+            for (var y = minY; y < maxY; y++)
+            {
+                var tile = Vm.State.TileGrid[x, y];
+                if ((tile.X + 1) * TileSize - LeftX < 0 || tile.X * TileSize - LeftX > Vm.PixelWidth ||
+                    (tile.Y + 1) * TileSize - TopY < 0 || tile.Y * TileSize - TopY > Vm.PixelHeight) continue;
+                var color = GetTileColor(tile);
+
+                if (tile.TileRole == TileRole.Conveyor) color = Colors.LightBlue;
+                if (Vm.EntitiesToHighlight.Contains(tile))
+                {
+                    Wb.FillRectangle(tile.X * TileSize + 1 - LeftX, tile.Y * TileSize + 1 - TopY,
+                        tile.X * TileSize + TileSize - 1 - LeftX, tile.Y * TileSize + TileSize - 1 - TopY, Colors.Peru);
+                    Wb.FillRectangle(tile.X * TileSize + 3 - LeftX, tile.Y * TileSize + 3 - TopY,
+                        tile.X * TileSize + TileSize - 3 - LeftX, tile.Y * TileSize + TileSize - 3 - TopY, color);
+                }
+                else
+                {
+                    Wb.FillRectangle(tile.X * TileSize + 1 - LeftX, tile.Y * TileSize + 1 - TopY,
+                        tile.X * TileSize + TileSize - 1 - LeftX, tile.Y * TileSize + TileSize - 1 - TopY, color);
+                }
+            }
+        }
+    }
+
+    private void HandleKeyPress()
+    {
+        if (Keyboard.FocusedElement is not TextBox)
+        {
+            foreach (var kvp in _numberKeys)
+            {
+                if (Keyboard.IsKeyDown(kvp.Key))
+                {
+                    Vm.CurrentPlayer = Math.Min(kvp.Value, Vm.PlayerCount);
+                }
+            }
+        }
+
+        if (Keyboard.FocusedElement is not TextBox)
+        {
+            foreach (var kvp in _movementKeys)
+            {
+                if (Keyboard.IsKeyDown(kvp.Key))
+                {
+                    Vm.Left += 10 * kvp.Value.X;
+                    Vm.Top += 10 * kvp.Value.Y;
+                    DrawCostText(_cellBackup);
+                }
+            }
+        }
+
+        if (Keyboard.FocusedElement is not TextBox)
+        {
+            if (Keyboard.IsKeyDown(Key.C) && !LastPressedKeys.Contains(Key.C))
+            {
+                Vm.ClickMode = (PathFinding.Shared.ViewModels.ClickMode)(((int)Vm.ClickMode + 1) % (Vm._maxClickMode + 1));
+                LastPressedKeys.Add(Key.C);
+            }
+        }
+
+        if (Keyboard.FocusedElement is not TextBox)
+        {
+            if (Keyboard.IsKeyDown(Key.Space) && !LastPressedKeys.Contains(Key.Space))
+            {
+                Vm.Paused = !Vm.Paused;
+                LastPressedKeys.Add(Key.Space);
+            }
+        }
+
+        ;
+        if (!Keyboard.IsKeyDown(Key.C) && LastPressedKeys.Contains(Key.C)) LastPressedKeys.Remove(Key.C);
+        if (!Keyboard.IsKeyDown(Key.Space) && LastPressedKeys.Contains(Key.Space)) LastPressedKeys.Remove(Key.Space);
+    }
+
     private void DrawSolutionCells(int minX, int maxX, int minY, int maxY)
     {
         foreach (var (i, valueTuples) in Vm.SolutionDictionary)
@@ -198,7 +285,6 @@ public partial class MainWindow
     {
         if (tile.IsPassable)
         {
-            if (Vm.EntitiesToHighlight.Contains(tile)) { return Colors.Peru; }
             return tile.ChunkId == -1 ? Colors.LightBlue : _metroColors[tile.ChunkId % _metroColors.Count];
         }
         return Colors.DarkGray;
