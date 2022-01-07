@@ -153,6 +153,7 @@ public class MainWindowViewModel : ObservableObject
             State = new(TileWidth, TileHeight, TileSize, Sp);
             AnswerCells = null;
             PlayerDictionary.Clear();
+            SolutionDictionary.Clear();
             for (var i = 1; i <= PlayerCount; i++) { PlayerDictionary.Add(i, (null, null)); }
             for (var i = 1; i <= PlayerCount; i++) { SolutionDictionary.Add(i, new()); }
         }
@@ -426,7 +427,7 @@ public class MainWindowViewModel : ObservableObject
 
     public void RandomlyAddItem()
     {
-        if (!Conveyors.Any() || Items.Count > 100 || _rand.NextDouble() > 0.1) { return; }
+        if (!Conveyors.Any() || Items.Count > 10_000 || _rand.NextDouble() > 0.991) { return; }
 
         var conveyorIndex = _rand.Next(0, Conveyors.Count);
         var conveyor = Conveyors[conveyorIndex];
@@ -456,7 +457,7 @@ public class MainWindowViewModel : ObservableObject
         //ToDo: What if I kept the left and right hand sides separate? Just have to define left/right side of each conveyorTile. If you go from one conveyor to another, left/right isn't respected.
         //ToDo: There's some issue with interlacing conveyors.
         TickConveyor();
-        return;
+        //return;
         for (var index = 0; index < Items.Count; index++)
         {
             var item = Items[index];
