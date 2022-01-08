@@ -129,48 +129,40 @@ public class MainWindowViewModel : ObservableObject
     private void PlaceConveyor(Tile tile)
     {
         if (!tile.IsPassable || tile.TileRole == TileRole.Conveyor) { return; }
-        //if (Conveyors.Any(c => c.ConveyorTile.Any(ct => ct.Tile.X == tile.X && ct.Tile.Y == tile.Y))) { return; }
 
+        //ToDo: Make it so `r` rotates this.
         (int X, int Y) direction = (0, 1);
-
-        //Conveyors.Add(new Conveyor() { ConveyorTile = new List<ConveyorTile>() { new ConveyorTile() { Tile = tile, Direction = direction, } } });
-
 
         var ct = new ConveyorTile() { Tile = tile, Direction = direction };
         ct.Setup();
 
-
-        if (State.TileGrid[tile.X + direction.X, tile.Y + direction.Y].TileRole == TileRole.Conveyor)
-        {
-            ConveyorTile foundConveyorTile = null;
-            foreach (var cv in Conveyors)
-            {
-                var sth = cv.ConveyorTile.FirstOrDefault(cvt => cvt.Tile.X == tile.X + direction.X && cvt.Tile.Y == tile.Y + direction.Y);
-                if (sth is not null) { foundConveyorTile = sth; }
-                if (foundConveyorTile is not null) { break; }
-            }
-            if (foundConveyorTile is null) return;
-
-            ct.Conveyor = foundConveyorTile.Conveyor;
-            var thing = new ConveyorTile[foundConveyorTile.Conveyor.ConveyorTile.Count + 1];
-
-            thing[0] = ct;
-
-            for (var index = 0; index < foundConveyorTile.Conveyor.ConveyorTile.Count; index++)
-            {
-                var fct = foundConveyorTile.Conveyor.ConveyorTile[index];
-                thing[index + 1] = fct;
-            }
-            foundConveyorTile.Conveyor.ConveyorTile = thing.ToList();
-        }
-        else
+        if (State.TileGrid[tile.X + direction.X, tile.Y + direction.Y].TileRole != TileRole.Conveyor)
         {
             var c = new Conveyor();
-            c.ConveyorTile.Add(ct);
+            c.ConveyorTiles.Add(ct);
             ct.Conveyor = c;
+            tile.ConveyorTile = ct;
             Conveyors.Add(c);
+            ct.Tile.TileRole = TileRole.Conveyor;
+            return;
         }
 
+        if (tile.X + direction.X < 0 || tile.X + direction.X > TileWidth || tile.Y + direction.Y < 0 || tile.Y + direction.Y > TileHeight) return;
+        var tempTile = State.TileGrid[tile.X + direction.X, tile.Y + direction.Y];
+        if (tempTile.ConveyorTile is null) return;
+        var foundConveyorTile = tempTile.ConveyorTile;
+        ct.Conveyor = foundConveyorTile.Conveyor;
+        if (ct.Conveyor is null) return;
+        var thing = new List<ConveyorTile>(foundConveyorTile.Conveyor.ConveyorTiles.Count + 1) { ct };
+        tile.ConveyorTile = ct;
+        if (foundConveyorTile.Conveyor.ConveyorTiles.Count > 0)
+        {
+            for (var index = 0; index < foundConveyorTile.Conveyor.ConveyorTiles.Count; index++)
+            {
+                thing.Add(foundConveyorTile.Conveyor.ConveyorTiles[index]);
+            }
+        }
+        foundConveyorTile.Conveyor.ConveyorTiles = thing;
         ct.Tile.TileRole = TileRole.Conveyor;
     }
 
@@ -318,9 +310,9 @@ public class MainWindowViewModel : ObservableObject
         if (tile is null) return;
 
         //var c = new Conveyor();
-        //var ct = new ConveyorTile() { Tile = tile, Direction = (X: 1, Y: 1), Conveyor = c };
+        //var ct = new ConveyorTiles() { Tile = tile, Direction = (X: 1, Y: 1), Conveyor = c };
         //ct.Setup();
-        //c.ConveyorTile.Add(ct);
+        //c.ConveyorTiles.Add(ct);
         //Conveyors.Add(c);
     }
 
@@ -384,7 +376,9 @@ public class MainWindowViewModel : ObservableObject
             var tempTile = State.TileGrid[result.SolutionCells[index].X, result.SolutionCells[index].Y];
             if (nextCell is null)
             {
-                conveyor.ConveyorTile.Add(new() { Tile = tempTile, Direction = (0, 0) });
+                var ctx = new ConveyorTile() { Tile = tempTile, Direction = (0, 0) };
+                conveyor.ConveyorTiles.Add(new() { Tile = tempTile, Direction = (0, 0) });
+                tempTile.ConveyorTile = ctx;
                 continue;
             }
 
@@ -392,14 +386,15 @@ public class MainWindowViewModel : ObservableObject
             tempTile.IsPassable = false;
             tempTile.TileRole = TileRole.Conveyor;
             var ct = new ConveyorTile() { Tile = tempTile, Direction = (X: x, Y: y), Conveyor = conveyor };
+            tempTile.ConveyorTile = ct;
             ct.Setup();
-            conveyor.ConveyorTile.Add(ct);
+            conveyor.ConveyorTiles.Add(ct);
         }
 
-        for (var index = 0; index < conveyor.ConveyorTile.Count; index++)
+        for (var index = 0; index < conveyor.ConveyorTiles.Count; index++)
         {
-            var conveyorTile = conveyor.ConveyorTile[index];
-            var nextConveyorTile = (index + 1 == conveyor.ConveyorTile.Count) ? null : conveyor.ConveyorTile[index + 1];
+            var conveyorTile = conveyor.ConveyorTiles[index];
+            var nextConveyorTile = (index + 1 == conveyor.ConveyorTiles.Count) ? null : conveyor.ConveyorTiles[index + 1];
             conveyorTile.NextConveyorTile = nextConveyorTile;
         }
 
@@ -409,14 +404,14 @@ public class MainWindowViewModel : ObservableObject
         for (var index = 0; index < Conveyors.Count; index++)
         {
             var conv = Conveyors[index];
-            var masterTile = conv.ConveyorTile[^1];
+            var masterTile = conv.ConveyorTiles[^1];
             if (masterTile.NextConveyorTile is not null) continue;
 
             for (var i = 0; i < Conveyors.Count; i++)
             {
                 if (i == index) continue;
                 var convSlave = Conveyors[i];
-                var slaveTile = convSlave.ConveyorTile.FirstOrDefault(t =>
+                var slaveTile = convSlave.ConveyorTiles.FirstOrDefault(t =>
                     t.Tile.X == masterTile.Tile.X && t.Tile.Y == masterTile.Tile.Y);
                 if (slaveTile is null) continue;
                 masterTile.NextConveyorTile = slaveTile;
@@ -424,7 +419,7 @@ public class MainWindowViewModel : ObservableObject
             }
         }
 
-        //foreach (var co in Conveyors) { /*I suck at debug with nulls.*/ Trace.WriteLine($"ConveyorID: {co.Id}" + string.Join("=> ", co.ConveyorTile.Select(x => $"({x.Tile.X},{x.Tile.Y}) to ({x.NextConveyorTile?.Tile.X ?? -1},{x.NextConveyorTile?.Tile.Y ?? -1})"))); }
+        //foreach (var co in Conveyors) { /*I suck at debug with nulls.*/ Trace.WriteLine($"ConveyorID: {co.Id}" + string.Join("=> ", co.ConveyorTiles.Select(x => $"({x.Tile.X},{x.Tile.Y}) to ({x.NextConveyorTile?.Tile.X ?? -1},{x.NextConveyorTile?.Tile.Y ?? -1})"))); }
 
         await PlayerPathFinding();
     }
@@ -484,7 +479,7 @@ public class MainWindowViewModel : ObservableObject
 
         var conveyorIndex = _rand.Next(0, Conveyors.Count);
         var conveyor = Conveyors[conveyorIndex];
-        var conveyorTile = conveyor.ConveyorTile.First();
+        var conveyorTile = conveyor.ConveyorTiles.First();
         if (conveyorTile.Items.Any() || conveyorTile.NextConveyorTile is null) return;
         var x = _rand.NextDouble() > 0.5 ? 0 : MaxCellNumber - 1;
         var y = _rand.NextDouble() > 0.5 ? 0 : MaxCellNumber - 1;
@@ -520,7 +515,7 @@ public class MainWindowViewModel : ObservableObject
             if (nextTile.Direction.X + nextTile.Direction.Y == 0) { item.DeleteItem(); continue; }
 
             var anotherItem = nextTile.Items.FirstOrDefault(i => i.X == nextX && i.Y == nextY);
-            if (anotherItem is not null) { /*Trace.WriteLine($"Another item is in the way at: Cell=({anotherItem.ConveyorTile.Tile.X},{anotherItem.ConveyorTile.Tile.Y}) ({anotherItem.X},{anotherItem.Y})" + $". An item is at Cell=({item.ConveyorTile.Tile.X},{item.ConveyorTile.Tile.Y}) ({item.X},{item.Y}). Our velocity is: {item.ConveyorTile.Direction}");*/ continue; }
+            if (anotherItem is not null) { /*Trace.WriteLine($"Another item is in the way at: Cell=({anotherItem.ConveyorTiles.Tile.X},{anotherItem.ConveyorTiles.Tile.Y}) ({anotherItem.X},{anotherItem.Y})" + $". An item is at Cell=({item.ConveyorTiles.Tile.X},{item.ConveyorTiles.Tile.Y}) ({item.X},{item.Y}). Our velocity is: {item.ConveyorTiles.Direction}");*/ continue; }
 
             (item.X, item.Y) = (nextX, nextY);
 

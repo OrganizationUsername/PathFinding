@@ -11,6 +11,7 @@ public class Tile
     public int Y;
     public int ChunkId = -1;
     public string Description => Name;
+    public ConveyorTile ConveyorTile { get; set; }
 
     public Tile(int x, int y, bool isPassable, int id)
     {

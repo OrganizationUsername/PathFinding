@@ -132,12 +132,12 @@ public partial class MainWindow
         {
             var conveyor = Vm.Conveyors[i];
             var color = _metroColors[i % _metroColors.Count];
-            for (var index = 0; index < conveyor.ConveyorTile.Count; index++)
+            for (var index = 0; index < conveyor.ConveyorTiles.Count; index++)
             {
-                var cell = conveyor.ConveyorTile[index].Tile;
+                var cell = conveyor.ConveyorTiles[index].Tile;
                 //Wb.FillRectangle(cell.X * TileSize + 1 - LeftX, cell.Y * TileSize + 1 - TopY, cell.X * TileSize + TileSize - 1 - LeftX, cell.Y * TileSize + TileSize - 1 - TopY, Colors.Black);
 
-                var (x, y) = conveyor.ConveyorTile[index].Direction;
+                var (x, y) = conveyor.ConveyorTiles[index].Direction;
                 if (x == 0 && y == 0)
                 {
                     /*Wb.FillRectangle(cell.X * TileSize + 1 - LeftX, cell.Y * TileSize + 1 - TopY, cell.X * TileSize + TileSize - 1 - LeftX, cell.Y * TileSize + TileSize - 1 - TopY, Colors.Gray);*/
