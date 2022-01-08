@@ -22,5 +22,4 @@ Conveyor belts with 1/2 lanes are possible.
 - Write some instructions
 - Thin walls
 - Undo/Redo
-- Show which click mode the user is in. Maybe allow them to click to the click mode they want to be in.
 - Provide OnlyPassable and OnlyImpassable modes for clicking.
