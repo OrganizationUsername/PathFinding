@@ -58,29 +58,8 @@ public class MainWindowViewModel : ObservableObject
     private string _selectedStringMode = Enum.GetNames(typeof(ClickMode)).First();
     private ClickMode _clickMode = ClickMode.Player;
     public List<string> StringModes { get; set; } = Enum.GetNames(typeof(ClickMode)).ToList();
-
-    public string SelectedStringMode
-    {
-        get => _selectedStringMode;
-        set
-        {
-            var nextEnum = (ClickMode)Enum.Parse(typeof(ClickMode), value);
-            SetProperty(ref _clickMode, nextEnum);
-            SetProperty(ref _selectedStringMode, value);
-        }
-    } 
-
-    public ClickMode ClickMode
-    {
-        get => _clickMode;
-        set
-        {
-            SetProperty(ref _clickMode, value);
-            SelectedStringMode = _clickMode.ToString();
-        }
-    }
-
-
+    public string SelectedStringMode { get => _selectedStringMode; set { SetProperty(ref _clickMode, (ClickMode)Enum.Parse(typeof(ClickMode), value)); SetProperty(ref _selectedStringMode, value); } }
+    public ClickMode ClickMode { get => _clickMode; set { SetProperty(ref _clickMode, value); SelectedStringMode = _clickMode.ToString(); } }
     public RelayCommand ResetCommand { get; set; }
     public AsyncRelayCommand<bool> ChangeDiagonalCommand { get; }
 
@@ -441,13 +420,7 @@ public class MainWindowViewModel : ObservableObject
         }
     }
 
-    public void TickConveyor()
-    {
-        foreach (var c in Conveyors)
-        {
-            c.Tick = (c.Tick + 1) % 8;
-        }
-    }
+    public void TickConveyor() => Conveyors.ForEach(c => c.Tick = (c.Tick + 1) % 8);
 
     public void RandomlyAddItem()
     {

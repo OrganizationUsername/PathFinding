@@ -48,10 +48,11 @@ namespace PathFinding.Core
             }
 
             sourceCell.GScore = 0;
-            var count = 0;
+            //var count = 0;
             while (destCell.Finished == false)
             {
-                count++;
+                if (!priorityQueue.Any()) return (null, null, s.ElapsedMilliseconds, thisDate);
+                //count++;
                 var changed = PathIteration(cellGrid, destCell, targets, diagonal, priorityQueue);
                 if (changed == 0) return (null, null, s.ElapsedMilliseconds, thisDate);
             }
