@@ -128,9 +128,50 @@ public class MainWindowViewModel : ObservableObject
 
     private void PlaceConveyor(Tile tile)
     {
-        if (Conveyors.Any(c => c.ConveyorTile.Any(ct => ct.Tile.X == tile.X && ct.Tile.Y == tile.Y))) { return; }
+        if (!tile.IsPassable || tile.TileRole == TileRole.Conveyor) { return; }
+        //if (Conveyors.Any(c => c.ConveyorTile.Any(ct => ct.Tile.X == tile.X && ct.Tile.Y == tile.Y))) { return; }
 
-        Conveyors.Add(new Conveyor() { ConveyorTile = new List<ConveyorTile>() { new ConveyorTile() { Tile = tile, Direction = (1, 1), } } });
+        (int X, int Y) direction = (0, 1);
+
+        //Conveyors.Add(new Conveyor() { ConveyorTile = new List<ConveyorTile>() { new ConveyorTile() { Tile = tile, Direction = direction, } } });
+
+
+        var ct = new ConveyorTile() { Tile = tile, Direction = direction };
+        ct.Setup();
+
+
+        if (State.TileGrid[tile.X + direction.X, tile.Y + direction.Y].TileRole == TileRole.Conveyor)
+        {
+            ConveyorTile foundConveyorTile = null;
+            foreach (var cv in Conveyors)
+            {
+                var sth = cv.ConveyorTile.FirstOrDefault(cvt => cvt.Tile.X == tile.X + direction.X && cvt.Tile.Y == tile.Y + direction.Y);
+                if (sth is not null) { foundConveyorTile = sth; }
+                if (foundConveyorTile is not null) { break; }
+            }
+            if (foundConveyorTile is null) return;
+
+            ct.Conveyor = foundConveyorTile.Conveyor;
+            var thing = new ConveyorTile[foundConveyorTile.Conveyor.ConveyorTile.Count + 1];
+
+            thing[0] = ct;
+
+            for (var index = 0; index < foundConveyorTile.Conveyor.ConveyorTile.Count; index++)
+            {
+                var fct = foundConveyorTile.Conveyor.ConveyorTile[index];
+                thing[index + 1] = fct;
+            }
+            foundConveyorTile.Conveyor.ConveyorTile = thing.ToList();
+        }
+        else
+        {
+            var c = new Conveyor();
+            c.ConveyorTile.Add(ct);
+            ct.Conveyor = c;
+            Conveyors.Add(c);
+        }
+
+        ct.Tile.TileRole = TileRole.Conveyor;
     }
 
     public async void HandleRightClick(Point? point)
@@ -276,9 +317,11 @@ public class MainWindowViewModel : ObservableObject
         var tile = GetTileAtLocation(point);
         if (tile is null) return;
 
-
-
-
+        //var c = new Conveyor();
+        //var ct = new ConveyorTile() { Tile = tile, Direction = (X: 1, Y: 1), Conveyor = c };
+        //ct.Setup();
+        //c.ConveyorTile.Add(ct);
+        //Conveyors.Add(c);
     }
 
     private async Task TryFlipElement(Tile tile)
@@ -442,7 +485,7 @@ public class MainWindowViewModel : ObservableObject
         var conveyorIndex = _rand.Next(0, Conveyors.Count);
         var conveyor = Conveyors[conveyorIndex];
         var conveyorTile = conveyor.ConveyorTile.First();
-        if (conveyorTile.Items.Any()) return;
+        if (conveyorTile.Items.Any() || conveyorTile.NextConveyorTile is null) return;
         var x = _rand.NextDouble() > 0.5 ? 0 : MaxCellNumber - 1;
         var y = _rand.NextDouble() > 0.5 ? 0 : MaxCellNumber - 1;
         var item = new Item()
