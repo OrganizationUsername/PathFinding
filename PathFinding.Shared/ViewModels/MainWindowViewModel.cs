@@ -48,14 +48,38 @@ public class MainWindowViewModel : ObservableObject
     public Dictionary<int, List<(int, int)>> SolutionDictionary = new();
     private bool _allowDiagonal = true;
     public int PlayerCount { get; set; }
-    public ClickMode ClickMode { get; set; } = ClickMode.Player;
     public Tile SelectedConveyorTile { get; set; }
     public List<Conveyor> Conveyors { get; set; } = new();
     public List<Item> Items { get; set; } = new();
     public int ItemsCount => Items.Count;
     private int _tickCounter;
     public readonly int MaxCellNumber = 2;
-    public int _maxClickMode = Enum.GetValues(typeof(ClickMode)).Cast<int>().Max();
+    public int MaxClickMode = Enum.GetValues(typeof(ClickMode)).Cast<int>().Max();
+    private string _selectedStringMode = Enum.GetNames(typeof(ClickMode)).First();
+    private ClickMode _clickMode = ClickMode.Player;
+    public List<string> StringModes { get; set; } = Enum.GetNames(typeof(ClickMode)).ToList();
+
+    public string SelectedStringMode
+    {
+        get => _selectedStringMode;
+        set
+        {
+            var nextEnum = (ClickMode)Enum.Parse(typeof(ClickMode), value);
+            SetProperty(ref _clickMode, nextEnum);
+            SetProperty(ref _selectedStringMode, value);
+        }
+    } 
+
+    public ClickMode ClickMode
+    {
+        get => _clickMode;
+        set
+        {
+            SetProperty(ref _clickMode, value);
+            SelectedStringMode = _clickMode.ToString();
+        }
+    }
+
 
     public RelayCommand ResetCommand { get; set; }
     public AsyncRelayCommand<bool> ChangeDiagonalCommand { get; }
@@ -483,4 +507,7 @@ public class MainWindowViewModel : ObservableObject
             }
         }
     }
+
+
+
 }

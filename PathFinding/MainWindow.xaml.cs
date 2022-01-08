@@ -10,6 +10,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using System.Numerics;
+using System.Windows.Data;
 using PathFinding.Core;
 using PathFinding.Annotations;
 using PathFinding.Shared.Models;
@@ -263,7 +264,7 @@ public partial class MainWindow
         {
             if (Keyboard.IsKeyDown(Key.C) && !LastPressedKeys.Contains(Key.C))
             {
-                Vm.ClickMode = (PathFinding.Shared.ViewModels.ClickMode)(((int)Vm.ClickMode + 1) % (Vm._maxClickMode + 1));
+                Vm.ClickMode = (PathFinding.Shared.ViewModels.ClickMode)(((int)Vm.ClickMode + 1) % (Vm.MaxClickMode + 1));
                 LastPressedKeys.Add(Key.C);
             }
         }
@@ -401,4 +402,8 @@ public partial class MainWindow
     private void MenuItem_Click(object sender, RoutedEventArgs e) => MessageBox.Show($"{_rightClickX},{_rightClickY}");
 
     private Vector2 PointToVector(System.Windows.Point point) => new Vector2((float)point.X, (float)point.Y);
+
+    
+
+
 }

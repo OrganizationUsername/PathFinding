@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:viewModels="clr-namespace:PathFinding.Shared.ViewModels;assembly=PathFinding.Shared"
+        xmlns:pathFinding="clr-namespace:PathFinding"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=viewModels:MainWindowViewModel}"
         x:Name="window"
@@ -49,6 +50,9 @@
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Top">
                         <TextBlock Text="Current Player: " />
                         <TextBlock Text="{Binding CurrentPlayer}" />
+                    </StackPanel>
+                    <StackPanel>
+                        <ListView ItemsSource="{Binding StringModes}" SelectedItem="{Binding SelectedStringMode}"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Bottom">
                         <TextBlock Text="FPS: "/>
