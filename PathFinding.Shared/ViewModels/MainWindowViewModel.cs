@@ -1,8 +1,6 @@
 ﻿using System.Diagnostics;
-using System.Reflection.Metadata.Ecma335;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using PathFinding.Annotations;
 using PathFinding.Core;
 using PathFinding.Persistence;
 using PathFinding.Shared.Models;
@@ -126,38 +124,49 @@ public class MainWindowViewModel : ObservableObject
         }
     }
 
-    private void PlaceConveyor(Tile tile)
+    private void PlaceConveyor(Tile hoveredTile)
     {
-        if (!tile.IsPassable || tile.TileRole == TileRole.Conveyor) { return; }
+        if (!hoveredTile.IsPassable || hoveredTile.TileRole == TileRole.Conveyor) { return; }
 
         //ToDo: Make it so `r` rotates this.
         //ToDo: I need to think about when conveyors should be joined and when they shouldn't be.
         //ToDo: Maybe checking other directions is wrong. Maybe I should be storing a list of conveyorTiles which go into a Tile inside the Tile itself.
-        (int X, int Y) direction = (0, 1);
+        (int X, int Y) direction = (0, -1);
 
-        var ct = new ConveyorTile() { Tile = tile, Direction = direction };
+        var ct = new ConveyorTile() { Tile = hoveredTile, Direction = direction };
         ct.Setup();
 
-        if (State.TileGrid[tile.X + direction.X, tile.Y + direction.Y].TileRole != TileRole.Conveyor)
+        if (hoveredTile.X + direction.X < 0 || hoveredTile.X + direction.X >= TileWidth || hoveredTile.Y + direction.Y < 0 || hoveredTile.Y + direction.Y >= TileHeight) return;
+        var offsetTile = State.TileGrid[hoveredTile.X + direction.X, hoveredTile.Y + direction.Y];
+        if (offsetTile is null) { return; }
+
+        if (!hoveredTile.InboundConveyorTiles.Any())
         {
             var c = new Conveyor();
             c.ConveyorTiles.Add(ct);
             ct.Conveyor = c;
-            tile.ConveyorTile = ct;
+            hoveredTile.ConveyorTile = ct;
             Conveyors.Add(c);
             ct.Tile.TileRole = TileRole.Conveyor;
+            offsetTile.InboundConveyorTiles.Add(ct);
             return;
         }
 
-        if (tile.X + direction.X < 0 || tile.X + direction.X > TileWidth || tile.Y + direction.Y < 0 || tile.Y + direction.Y > TileHeight) return;
-        var offsetTile = State.TileGrid[tile.X + direction.X, tile.Y + direction.Y];
-        //if (offsetTile.ConveyorTile is null) return;
+        if (hoveredTile.InboundConveyorTiles.Any())
+        {
+            Trace.WriteLine($"Found something!");
+        }
+        else
+        {
+            return; //This shouldn't be hit.
+        }
 
         var foundConveyorTile = offsetTile.ConveyorTile;
-        ct.Conveyor = foundConveyorTile.Conveyor;
+        //var foundConveyorTile = hoveredTile.InboundConveyorTiles.First();
+        foundConveyorTile.Conveyor = hoveredTile.ConveyorTile.Conveyor;
         if (ct.Conveyor is null) return;
         var thing = new List<ConveyorTile>(foundConveyorTile.Conveyor.ConveyorTiles.Count + 1) { ct };
-        tile.ConveyorTile = ct;
+        hoveredTile.ConveyorTile = ct;
         if (foundConveyorTile.Conveyor.ConveyorTiles.Count > 0)
         {
             for (var index = 0; index < foundConveyorTile.Conveyor.ConveyorTiles.Count; index++)
@@ -313,7 +322,7 @@ public class MainWindowViewModel : ObservableObject
         if (tile is null) return;
 
         //var c = new Conveyor();
-        //var ct = new ConveyorTiles() { Tile = tile, Direction = (X: 1, Y: 1), Conveyor = c };
+        //var ct = new ConveyorTiles() { Tile = hoveredTile, Direction = (X: 1, Y: 1), Conveyor = c };
         //ct.Setup();
         //c.ConveyorTiles.Add(ct);
         //Conveyors.Add(c);
@@ -504,7 +513,7 @@ public class MainWindowViewModel : ObservableObject
     {
         //ToDo: Think about how this will be performed without GUI
         //ToDo: Actually I need to go through items according to who is furthest down the line so I can account for collisions more effectively.
-        //Maybe it would be the segment * 10 + (_maxCellNumber * the tile direction (if x=3 and direction = (1,3), then it's the first that would be checked.). I'd look at highest first.
+        //Maybe it would be the segment * 10 + (_maxCellNumber * the hoveredTile direction (if x=3 and direction = (1,3), then it's the first that would be checked.). I'd look at highest first.
         //ToDo: What if I kept the left and right hand sides separate? Just have to define left/right side of each conveyorTile. If you go from one conveyor to another, left/right isn't respected.
         //ToDo: There's some issue with interlacing conveyors.
         TickConveyor();

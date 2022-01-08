@@ -123,7 +123,7 @@ public partial class MainWindow
         }
 
         Wb.Unlock();
-        Trace.WriteLine($"Time to draw everything: {sw.ElapsedMilliseconds}"); //~20
+        //Trace.WriteLine($"Time to draw everything: {sw.ElapsedMilliseconds}"); //~1
     }
 
     private void DrawConveyors()

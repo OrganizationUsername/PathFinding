@@ -12,7 +12,7 @@ public class Tile
     public int ChunkId = -1;
     public string Description => Name;
     public ConveyorTile ConveyorTile { get; set; }
-
+    public List<ConveyorTile> InboundConveyorTiles { get; set; } = new(4);
     public Tile(int x, int y, bool isPassable, int id)
     {
         Id = id;
