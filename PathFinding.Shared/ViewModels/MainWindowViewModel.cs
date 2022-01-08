@@ -131,6 +131,8 @@ public class MainWindowViewModel : ObservableObject
         if (!tile.IsPassable || tile.TileRole == TileRole.Conveyor) { return; }
 
         //ToDo: Make it so `r` rotates this.
+        //ToDo: I need to think about when conveyors should be joined and when they shouldn't be.
+        //ToDo: Maybe checking other directions is wrong. Maybe I should be storing a list of conveyorTiles which go into a Tile inside the Tile itself.
         (int X, int Y) direction = (0, 1);
 
         var ct = new ConveyorTile() { Tile = tile, Direction = direction };
@@ -148,9 +150,10 @@ public class MainWindowViewModel : ObservableObject
         }
 
         if (tile.X + direction.X < 0 || tile.X + direction.X > TileWidth || tile.Y + direction.Y < 0 || tile.Y + direction.Y > TileHeight) return;
-        var tempTile = State.TileGrid[tile.X + direction.X, tile.Y + direction.Y];
-        if (tempTile.ConveyorTile is null) return;
-        var foundConveyorTile = tempTile.ConveyorTile;
+        var offsetTile = State.TileGrid[tile.X + direction.X, tile.Y + direction.Y];
+        //if (offsetTile.ConveyorTile is null) return;
+
+        var foundConveyorTile = offsetTile.ConveyorTile;
         ct.Conveyor = foundConveyorTile.Conveyor;
         if (ct.Conveyor is null) return;
         var thing = new List<ConveyorTile>(foundConveyorTile.Conveyor.ConveyorTiles.Count + 1) { ct };
