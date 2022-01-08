@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Threading.Tasks;
 using System.Windows;
@@ -64,6 +65,7 @@ public partial class MainWindow
         //TODO: What if I got "R" to get a Rectangle you could throw in?
     }
 
+    [SuppressMessage("ReSharper.DPA", "DPA0002: Excessive memory allocations in SOH")]
     private async void RenderTickAsync(object sender, EventArgs e)
     {
         HandleKeyPress();
@@ -272,8 +274,15 @@ public partial class MainWindow
 
         if (Keyboard.IsKeyDown(Key.C) && !LastPressedKeys.Contains(Key.C))
         {
+            //ToDo: The logic should be in Vm
             Vm.ClickMode = (PathFinding.Shared.ViewModels.ClickMode)(((int)Vm.ClickMode + 1) % (Vm.MaxClickMode + 1));
             LastPressedKeys.Add(Key.C);
+        }
+
+        if (Keyboard.IsKeyDown(Key.R) && !LastPressedKeys.Contains(Key.R))
+        {
+            Vm.TryRotateConveyor(_point);
+            LastPressedKeys.Add(Key.R);
         }
 
         if (Keyboard.IsKeyDown(Key.Space) && !LastPressedKeys.Contains(Key.Space))
@@ -283,6 +292,7 @@ public partial class MainWindow
         }
 
         if (!Keyboard.IsKeyDown(Key.C) && LastPressedKeys.Contains(Key.C)) LastPressedKeys.Remove(Key.C);
+        if (!Keyboard.IsKeyDown(Key.R) && LastPressedKeys.Contains(Key.R)) LastPressedKeys.Remove(Key.R);
         if (!Keyboard.IsKeyDown(Key.Space) && LastPressedKeys.Contains(Key.Space)) LastPressedKeys.Remove(Key.Space);
     }
 

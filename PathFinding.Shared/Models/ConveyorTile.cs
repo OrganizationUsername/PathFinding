@@ -2,6 +2,7 @@
 
 public class ConveyorTile
 {
+    public static int MaxCellNumber;
     public (int X, int Y) Direction;
     /// <summary>
     /// If X == 0 grid is left. If X==1 cellMax is right. If X== -1, Y determines left/right side.
@@ -11,5 +12,15 @@ public class ConveyorTile
     public List<Item> Items = new();
     public Conveyor Conveyor;
     public ConveyorTile NextConveyorTile;
+
+    public void Setup()
+    {
+        var conveyorDirection = (-1, -1);
+        if (Direction.X > 0) conveyorDirection = (-1, MaxCellNumber - 1);
+        if (Direction.X < 0) conveyorDirection = (-1, 0);
+        if (Direction.Y > 0) conveyorDirection = (0, -1);
+        if (Direction.Y < 0) conveyorDirection = (MaxCellNumber - 1, -1);
+        Lane = conveyorDirection;
+    }
 }
 

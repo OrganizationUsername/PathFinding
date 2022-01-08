@@ -8,5 +8,5 @@ public class Conveyor
     public List<ConveyorTile> ConveyorTile { get; set; } = new();
     public List<Item> Items = new();
     public int Tick;
+    public LinkedList<ConveyorTile> ConveyorTiles { get; set; }
 }
-

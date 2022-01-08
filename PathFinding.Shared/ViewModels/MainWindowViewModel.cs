@@ -2,6 +2,7 @@
 using System.Reflection.Metadata.Ecma335;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PathFinding.Annotations;
 using PathFinding.Core;
 using PathFinding.Persistence;
 using PathFinding.Shared.Models;
@@ -71,7 +72,7 @@ public class MainWindowViewModel : ObservableObject
 
         for (var i = 1; i <= PlayerCount; i++) { PlayerDictionary.Add(i, (null, null)); }
         for (var i = 1; i <= PlayerCount; i++) { SolutionDictionary.Add(i, new()); }
-
+        ConveyorTile.MaxCellNumber = MaxCellNumber;
         Item.MainWindowViewModel = this;
         Item.MaxCellNumber = MaxCellNumber;
         PixelWidth = 600;
@@ -116,12 +117,20 @@ public class MainWindowViewModel : ObservableObject
             case ClickMode.Player:
                 await TryFlipElement(tile); return;
             case ClickMode.Conveyor:
+                PlaceConveyor(tile);
                 break;
             case ClickMode.Item:
                 break;
             default:
                 throw new ArgumentOutOfRangeException();
         }
+    }
+
+    private void PlaceConveyor(Tile tile)
+    {
+        if (Conveyors.Any(c => c.ConveyorTile.Any(ct => ct.Tile.X == tile.X && ct.Tile.Y == tile.Y))) { return; }
+
+        Conveyors.Add(new Conveyor() { ConveyorTile = new List<ConveyorTile>() { new ConveyorTile() { Tile = tile, Direction = (1, 1), } } });
     }
 
     public async void HandleRightClick(Point? point)
@@ -157,8 +166,7 @@ public class MainWindowViewModel : ObservableObject
             AnswerCells = null;
             PlayerDictionary.Clear();
             SolutionDictionary.Clear();
-            for (var i = 1; i <= PlayerCount; i++) { PlayerDictionary.Add(i, (null, null)); }
-            for (var i = 1; i <= PlayerCount; i++) { SolutionDictionary.Add(i, new()); }
+            for (var i = 1; i <= PlayerCount; i++) { PlayerDictionary.Add(i, (null, null)); SolutionDictionary.Add(i, new()); }
         }
     }
 
@@ -253,16 +261,24 @@ public class MainWindowViewModel : ObservableObject
 
             Trace.WriteLine($"{solution.TimeToSolve}ms to solve ({source.X},{source.Y}) to ({source.X},{destination.Y}).");
 
+            foreach (var cell in solution.SolutionCells) { SolutionDictionary[key].Add((cell.X, cell.Y)); }
 
-            foreach (var cell in solution.SolutionCells)
-            {
-                SolutionDictionary[key].Add((cell.X, cell.Y));
-            }
             foreach (var cell in solution.AllCells) { notableCount = (cell.FCost > int.MaxValue / 3) ? notableCount + 1 : notableCount; }
 
             //CellsScored = notableCount; //Wrong at the moment
             //AnswerCells = solution.AllCells; //Wrong at the moment
         }
+    }
+
+    public void TryRotateConveyor(Point? point)
+    {
+        if (!point.HasValue) return;
+        var tile = GetTileAtLocation(point);
+        if (tile is null) return;
+
+
+
+
     }
 
     private async Task TryFlipElement(Tile tile)
@@ -330,14 +346,11 @@ public class MainWindowViewModel : ObservableObject
             }
 
             var (x, y) = (cell.X - nextCell.X, cell.Y - nextCell.Y);
-            var conveyorDirection = (-1, -1);
-            if (x > 0) conveyorDirection = (-1, MaxCellNumber - 1);
-            if (x < 0) conveyorDirection = (-1, 0);
-            if (y > 0) conveyorDirection = (0, -1);
-            if (y < 0) conveyorDirection = (MaxCellNumber - 1, -1);
             tempTile.IsPassable = false;
             tempTile.TileRole = TileRole.Conveyor;
-            conveyor.ConveyorTile.Add(new() { Tile = tempTile, Direction = (X: x, Y: y), Conveyor = conveyor, Lane = conveyorDirection });
+            var ct = new ConveyorTile() { Tile = tempTile, Direction = (X: x, Y: y), Conveyor = conveyor };
+            ct.Setup();
+            conveyor.ConveyorTile.Add(ct);
         }
 
         for (var index = 0; index < conveyor.ConveyorTile.Count; index++)
@@ -464,11 +477,7 @@ public class MainWindowViewModel : ObservableObject
             if (nextTile.Direction.X + nextTile.Direction.Y == 0) { item.DeleteItem(); continue; }
 
             var anotherItem = nextTile.Items.FirstOrDefault(i => i.X == nextX && i.Y == nextY);
-            if (anotherItem is not null)
-            {
-                //Trace.WriteLine($"Another item is in the way at: Cell=({anotherItem.ConveyorTile.Tile.X},{anotherItem.ConveyorTile.Tile.Y}) ({anotherItem.X},{anotherItem.Y})" + $". An item is at Cell=({item.ConveyorTile.Tile.X},{item.ConveyorTile.Tile.Y}) ({item.X},{item.Y}). Our velocity is: {item.ConveyorTile.Direction}");
-                continue;
-            }
+            if (anotherItem is not null) { /*Trace.WriteLine($"Another item is in the way at: Cell=({anotherItem.ConveyorTile.Tile.X},{anotherItem.ConveyorTile.Tile.Y}) ({anotherItem.X},{anotherItem.Y})" + $". An item is at Cell=({item.ConveyorTile.Tile.X},{item.ConveyorTile.Tile.Y}) ({item.X},{item.Y}). Our velocity is: {item.ConveyorTile.Direction}");*/ continue; }
 
             (item.X, item.Y) = (nextX, nextY);
 
@@ -480,7 +489,4 @@ public class MainWindowViewModel : ObservableObject
             }
         }
     }
-
-
-
 }
