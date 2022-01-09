@@ -75,8 +75,8 @@ public class MainWindowViewModel : ObservableObject
         Item.MaxCellNumber = MaxCellNumber;
         PixelWidth = 600;
         PixelHeight = 600;
-        TileWidth = 20;
-        TileHeight = 20;
+        TileWidth = 5;
+        TileHeight = 5;
         var tileSize = 10;
         TileSize = tileSize;
         State = new(TileWidth, TileHeight, tileSize, Sp);
@@ -84,7 +84,7 @@ public class MainWindowViewModel : ObservableObject
         ResetCommand = new(Reset);
         ChangeDiagonalCommand = new(async (x) => { AllowDiagonal = x; await PlayerPathFinding(); });
         SetupMapString();
-        UploadMapString(@"3972_G4MPKI6UrMG9OgaGZmcAmLpKbFnWit9TRq0AVogGrRYWkQKSyyR9MuH9AenBv5sSeR+axQ4OHRwOESlSJAS5Z9t9tbIp5bwH/db7lgtKvQ3fH/yDCwonLSau8Y5aty1SCrbmxv20+I7bysl9AkepUN0bb8SGsANKLOiJCCOVU9u/PdYBet5gBsp6XKAeo8WuNkoNM9i8x35DUGYmR2HshCll3M4bPrVsPmGmOrfbSlJsVi5AcEMLzgbP00rTOd1HKeRUSX4C8L9Z9J5BfOKtSR8zs44M8O4CnJ34LyKDi1+JtWLy3HcqERkmHi4KuYeEAVZOkn7jlh3Ids0oomZVmhr0uiun2U/QT+4nJNkSyHAzQT3YYiIzDiVYB7yJesuCYk2e3Df2H0LT9zIwdRrIDAGbymDcWdFEvewh74DIswbs9HJiTy4feNxBJYXpdsockTBZH82r/DHk/7rdEm5CteuHA4xBLV4z55I+3SfLdkRAOvlY8Pk2kj0A");
+        //UploadMapString(@"3972_G4MPKI6UrMG9OgaGZmcAmLpKbFnWit9TRq0AVogGrRYWkQKSyyR9MuH9AenBv5sSeR+axQ4OHRwOESlSJAS5Z9t9tbIp5bwH/db7lgtKvQ3fH/yDCwonLSau8Y5aty1SCrbmxv20+I7bysl9AkepUN0bb8SGsANKLOiJCCOVU9u/PdYBet5gBsp6XKAeo8WuNkoNM9i8x35DUGYmR2HshCll3M4bPrVsPmGmOrfbSlJsVi5AcEMLzgbP00rTOd1HKeRUSX4C8L9Z9J5BfOKtSR8zs44M8O4CnJ34LyKDi1+JtWLy3HcqERkmHi4KuYeEAVZOkn7jlh3Ids0oomZVmhr0uiun2U/QT+4nJNkSyHAzQT3YYiIzDiVYB7yJesuCYk2e3Df2H0LT9zIwdRrIDAGbymDcWdFEvewh74DIswbs9HJiTy4feNxBJYXpdsockTBZH82r/DHk/7rdEm5CteuHA4xBLV4z55I+3SfLdkRAOvlY8Pk2kj0A");
     }
 
     public async Task Tick(Point? point, bool leftClicked)
@@ -126,56 +126,81 @@ public class MainWindowViewModel : ObservableObject
 
     private void PlaceConveyor(Tile hoveredTile)
     {
-        if (!hoveredTile.IsPassable || hoveredTile.TileRole == TileRole.Conveyor) { return; }
+        if (!hoveredTile.IsPassable || hoveredTile.ConveyorTile is not null)
+        {
+            //Trace.WriteLine($"{!hoveredTile.IsPassable} || {hoveredTile.ConveyorTile is not null}");
+            return;
+        }
+
+        Trace.WriteLine($"({hoveredTile.X},{hoveredTile.Y}) clicked.");
 
         //ToDo: Make it so `r` rotates this.
         //ToDo: I need to think about when conveyors should be joined and when they shouldn't be.
         //ToDo: Maybe checking other directions is wrong. Maybe I should be storing a list of conveyorTiles which go into a Tile inside the Tile itself.
-        (int X, int Y) direction = (0, -1);
+        (int X, int Y) direction = (0, 1); //This is backwards because I set up conveyors wrong with right-clicking.
 
+        //Selected tile has no ConveyorTile. 
         var ct = new ConveyorTile() { Tile = hoveredTile, Direction = direction };
         ct.Setup();
+        hoveredTile.TileRole = TileRole.Conveyor;
 
-        if (hoveredTile.X + direction.X < 0 || hoveredTile.X + direction.X >= TileWidth || hoveredTile.Y + direction.Y < 0 || hoveredTile.Y + direction.Y >= TileHeight) return;
-        var offsetTile = State.TileGrid[hoveredTile.X + direction.X, hoveredTile.Y + direction.Y];
-        if (offsetTile is null) { return; }
-
-        if (!hoveredTile.InboundConveyorTiles.Any())
+        Tile newTargetTile = null;
+        if (hoveredTile.X + direction.X >= 0 && hoveredTile.X + direction.X < TileWidth && hoveredTile.Y + direction.Y >= 0 && hoveredTile.Y + direction.Y < TileHeight)
         {
-            var c = new Conveyor();
-            c.ConveyorTiles.Add(ct);
-            ct.Conveyor = c;
+            newTargetTile = State.TileGrid[hoveredTile.X + direction.X, hoveredTile.Y + direction.Y];
+        }
+
+        Tile SomethingElseTargetTile = null;
+        if (hoveredTile.X - direction.X >= 0 && hoveredTile.X - direction.X < TileWidth && hoveredTile.Y - direction.Y >= 0 && hoveredTile.Y - direction.Y < TileHeight)
+        {
+            SomethingElseTargetTile = State.TileGrid[hoveredTile.X + direction.X, hoveredTile.Y + direction.Y];
+        }
+
+        //If any tile points to this one, then make add this conveyorTile to that conveyor.
+        if (hoveredTile.InboundConveyorTiles.Any())
+        {
+            Trace.WriteLine($"");
+            var tailConveyorTile = hoveredTile.InboundConveyorTiles.First(); //indeterministic
             hoveredTile.ConveyorTile = ct;
-            Conveyors.Add(c);
-            ct.Tile.TileRole = TileRole.Conveyor;
-            offsetTile.InboundConveyorTiles.Add(ct);
+            Trace.WriteLine($"({ct.Tile.X},{ct.Tile.Y}) conveyorTile set");
+            ct.Conveyor = tailConveyorTile.Conveyor;
+            tailConveyorTile.Conveyor.ConveyorTiles.Add(ct);
+            if (newTargetTile is not null) { newTargetTile.InboundConveyorTiles.Add(ct); }
+            Trace.WriteLine($"Added new ct ({ct.Tile.X},{ct.Tile.Y}) to existing conveyor since it lands on this one. Conveyor = {string.Join(", ", tailConveyorTile.Conveyor.ConveyorTiles.Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"))}.");
             return;
         }
 
-        if (hoveredTile.InboundConveyorTiles.Any())
+        //If the conveyor, would land on another tile
+        if (newTargetTile?.ConveyorTile is not null)
         {
-            Trace.WriteLine($"Found something!");
-        }
-        else
-        {
-            return; //This shouldn't be hit.
+            ct.Conveyor = newTargetTile.ConveyorTile.Conveyor;
+            ct.NextConveyorTile = newTargetTile.ConveyorTile;
+            ct.Conveyor.ConveyorTiles.Add(ct);
+            hoveredTile.ConveyorTile = ct;
+            Trace.WriteLine($"This ct ({ct.Tile.X},{ct.Tile.Y}) lands on another conveyorTile. Conveyor = {string.Join(", ", newTargetTile.ConveyorTile.Conveyor.ConveyorTiles.Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"))}.");
+
+            Trace.WriteLine($"({hoveredTile.X},{hoveredTile.Y}) conveyorTile set");
+            //newTargetTile?.InboundConveyorTiles.Add(ct);
+            //Trace.WriteLine($"(Next Target Tile is: {newTargetTile.ConveyorTile.Tile.X},{newTargetTile.ConveyorTile.Tile.Y}) with {string.Join(", ", newTargetTile.InboundConveyorTiles.Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"))}");
+            SomethingElseTargetTile?.InboundConveyorTiles.Add(ct);
+            Trace.WriteLine($"(Next Target Tile is: {SomethingElseTargetTile.ConveyorTile.Tile.X},{SomethingElseTargetTile.ConveyorTile.Tile.Y}) with {string.Join(", ", SomethingElseTargetTile.InboundConveyorTiles.Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"))}");
+            return;
         }
 
-        var foundConveyorTile = offsetTile.ConveyorTile;
-        //var foundConveyorTile = hoveredTile.InboundConveyorTiles.First();
-        foundConveyorTile.Conveyor = hoveredTile.ConveyorTile.Conveyor;
-        if (ct.Conveyor is null) return;
-        var thing = new List<ConveyorTile>(foundConveyorTile.Conveyor.ConveyorTiles.Count + 1) { ct };
+        var c = new Conveyor();
+        c.ConveyorTiles.Add(ct);
+        ct.Conveyor = c;
         hoveredTile.ConveyorTile = ct;
-        if (foundConveyorTile.Conveyor.ConveyorTiles.Count > 0)
-        {
-            for (var index = 0; index < foundConveyorTile.Conveyor.ConveyorTiles.Count; index++)
-            {
-                thing.Add(foundConveyorTile.Conveyor.ConveyorTiles[index]);
-            }
-        }
-        foundConveyorTile.Conveyor.ConveyorTiles = thing;
+        Trace.WriteLine($"({ct.Tile.X},{ct.Tile.Y}) conveyorTile set");
+        Conveyors.Add(c);
         ct.Tile.TileRole = TileRole.Conveyor;
+        if (newTargetTile?.ConveyorTile is not null)
+        {
+            newTargetTile.InboundConveyorTiles.Add(ct);
+        }
+        Trace.WriteLine($"This ct ({ct.Tile.X},{ct.Tile.Y}) constitutes a new Conveyor! Conveyor = {string.Join(", ", ct.Conveyor.ConveyorTiles.Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"))}.");
+
+        return;
     }
 
     public async void HandleRightClick(Point? point)
