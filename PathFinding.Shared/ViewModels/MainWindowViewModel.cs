@@ -75,8 +75,8 @@ public class MainWindowViewModel : ObservableObject
         Item.MaxCellNumber = MaxCellNumber;
         PixelWidth = 600;
         PixelHeight = 600;
-        TileWidth = 5;
-        TileHeight = 5;
+        TileWidth = 10;
+        TileHeight = 10;
         var tileSize = 10;
         TileSize = tileSize;
         State = new(TileWidth, TileHeight, tileSize, Sp);
@@ -116,6 +116,7 @@ public class MainWindowViewModel : ObservableObject
                 await TryFlipElement(tile); return;
             case ClickMode.Conveyor:
                 PlaceConveyor(tile);
+                GetHoverElements(point);
                 break;
             case ClickMode.Item:
                 break;
@@ -126,17 +127,12 @@ public class MainWindowViewModel : ObservableObject
 
     private void PlaceConveyor(Tile hoveredTile)
     {
-        if (!hoveredTile.IsPassable || hoveredTile.ConveyorTile is not null)
-        {
-            //Trace.WriteLine($"{!hoveredTile.IsPassable} || {hoveredTile.ConveyorTile is not null}");
-            return;
-        }
+        if (!hoveredTile.IsPassable || hoveredTile.ConveyorTile is not null) { return; }
 
         Trace.WriteLine($"({hoveredTile.X},{hoveredTile.Y}) clicked.");
 
         //ToDo: Make it so `r` rotates this.
         //ToDo: I need to think about when conveyors should be joined and when they shouldn't be.
-        //ToDo: Maybe checking other directions is wrong. Maybe I should be storing a list of conveyorTiles which go into a Tile inside the Tile itself.
         (int X, int Y) direction = (0, 1); //This is backwards because I set up conveyors wrong with right-clicking.
 
         //Selected tile has no ConveyorTile. 
@@ -144,32 +140,27 @@ public class MainWindowViewModel : ObservableObject
         ct.Setup();
         hoveredTile.TileRole = TileRole.Conveyor;
 
-        Tile newTargetTile = null;
-        if (hoveredTile.X + direction.X >= 0 && hoveredTile.X + direction.X < TileWidth && hoveredTile.Y + direction.Y >= 0 && hoveredTile.Y + direction.Y < TileHeight)
-        {
-            newTargetTile = State.TileGrid[hoveredTile.X + direction.X, hoveredTile.Y + direction.Y];
-        }
-
-        Tile SomethingElseTargetTile = null;
+        Tile somethingElseTargetTile = null;
         if (hoveredTile.X - direction.X >= 0 && hoveredTile.X - direction.X < TileWidth && hoveredTile.Y - direction.Y >= 0 && hoveredTile.Y - direction.Y < TileHeight)
         {
-            SomethingElseTargetTile = State.TileGrid[hoveredTile.X - direction.X, hoveredTile.Y - direction.Y];
+            somethingElseTargetTile = State.TileGrid[hoveredTile.X - direction.X, hoveredTile.Y - direction.Y];
         }
 
-        if (hoveredTile.InboundConveyorTiles.Any() && SomethingElseTargetTile?.ConveyorTile is not null)
+        if (hoveredTile.InboundConveyorTiles.Any() && somethingElseTargetTile?.ConveyorTile is not null)
         {
-            //ToDo: Something's a little broken in here.
             var tailConveyorTile = hoveredTile.InboundConveyorTiles.First(); //indeterministic
             hoveredTile.ConveyorTile = ct;
             ct.Conveyor = tailConveyorTile.Conveyor;
             tailConveyorTile.Conveyor.ConveyorTiles.Add(ct);
-            SomethingElseTargetTile?.InboundConveyorTiles.Add(ct);
-            var otherConveyor = SomethingElseTargetTile.ConveyorTile.Conveyor;
+            somethingElseTargetTile?.InboundConveyorTiles.Add(ct);
+            var otherConveyor = somethingElseTargetTile.ConveyorTile.Conveyor;
             foreach (var tile in otherConveyor.ConveyorTiles)
             {
+                tile.Conveyor = tailConveyorTile.Conveyor;
                 ct.Conveyor.ConveyorTiles.Add(tile);
             }
             Conveyors.Remove(otherConveyor);
+            return;
         }
 
 
@@ -181,25 +172,22 @@ public class MainWindowViewModel : ObservableObject
             Trace.WriteLine($"({ct.Tile.X},{ct.Tile.Y}) conveyorTile set");
             ct.Conveyor = tailConveyorTile.Conveyor;
             tailConveyorTile.Conveyor.ConveyorTiles.Add(ct);
-            SomethingElseTargetTile?.InboundConveyorTiles.Add(ct);
+            somethingElseTargetTile?.InboundConveyorTiles.Add(ct);
             Trace.WriteLine($"Added new ct ({ct.Tile.X},{ct.Tile.Y}) to existing conveyor since it lands on this one. Conveyor = {string.Join(", ", tailConveyorTile.Conveyor.ConveyorTiles.Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"))}.");
             return;
         }
 
         //If the conveyor, would land on another tile
-        if (SomethingElseTargetTile?.ConveyorTile is not null)
+        if (somethingElseTargetTile?.ConveyorTile is not null)
         {
             //ToDo: I also need to cascade changes here.
-            ct.Conveyor = SomethingElseTargetTile.ConveyorTile.Conveyor;
-            ct.NextConveyorTile = SomethingElseTargetTile.ConveyorTile;
+            ct.Conveyor = somethingElseTargetTile.ConveyorTile.Conveyor;
+            ct.NextConveyorTile = somethingElseTargetTile.ConveyorTile;
             ct.Conveyor.ConveyorTiles.Add(ct);
             hoveredTile.ConveyorTile = ct;
-            Trace.WriteLine($"This ct ({ct.Tile.X},{ct.Tile.Y}) lands on another conveyorTile. Conveyor = {string.Join(", ", SomethingElseTargetTile.ConveyorTile.Conveyor.ConveyorTiles.Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"))}.");
+            Trace.WriteLine($"This ct ({ct.Tile.X},{ct.Tile.Y}) lands on another conveyorTile. Conveyor = {string.Join(", ", somethingElseTargetTile.ConveyorTile.Conveyor.ConveyorTiles.Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"))}.");
             Trace.WriteLine($"({hoveredTile.X},{hoveredTile.Y}) conveyorTile set");
-            //newTargetTile?.InboundConveyorTiles.Add(ct);
-            //Trace.WriteLine($"(Next Target Tile is: {newTargetTile.ConveyorTile.Tile.X},{newTargetTile.ConveyorTile.Tile.Y}) with {string.Join(", ", newTargetTile.InboundConveyorTiles.Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"))}");
-            SomethingElseTargetTile?.InboundConveyorTiles.Add(ct);
-            //Trace.WriteLine($"(Next Target Tile is: {SomethingElseTargetTile.ConveyorTile.Tile.X},{SomethingElseTargetTile.ConveyorTile.Tile.Y}) with {string.Join(", ", SomethingElseTargetTile.InboundConveyorTiles.Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"))}");
+            somethingElseTargetTile?.InboundConveyorTiles.Add(ct);
             return;
         }
 
@@ -210,10 +198,8 @@ public class MainWindowViewModel : ObservableObject
         Trace.WriteLine($"({ct.Tile.X},{ct.Tile.Y}) conveyorTile set");
         Conveyors.Add(c);
         ct.Tile.TileRole = TileRole.Conveyor;
-        SomethingElseTargetTile?.InboundConveyorTiles.Add(ct);
+        somethingElseTargetTile?.InboundConveyorTiles.Add(ct);
         Trace.WriteLine($"This ct ({ct.Tile.X},{ct.Tile.Y}) constitutes a new Conveyor! Conveyor = {string.Join(", ", ct.Conveyor.ConveyorTiles.Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"))}.");
-
-        return;
     }
 
     public async void HandleRightClick(Point? point)
