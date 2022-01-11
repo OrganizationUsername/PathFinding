@@ -153,7 +153,7 @@ public class MainWindowViewModel : ObservableObject
         Tile SomethingElseTargetTile = null;
         if (hoveredTile.X - direction.X >= 0 && hoveredTile.X - direction.X < TileWidth && hoveredTile.Y - direction.Y >= 0 && hoveredTile.Y - direction.Y < TileHeight)
         {
-            SomethingElseTargetTile = State.TileGrid[hoveredTile.X + direction.X, hoveredTile.Y + direction.Y];
+            SomethingElseTargetTile = State.TileGrid[hoveredTile.X - direction.X, hoveredTile.Y - direction.Y];
         }
 
         //If any tile points to this one, then make add this conveyorTile to that conveyor.
@@ -183,7 +183,7 @@ public class MainWindowViewModel : ObservableObject
             //newTargetTile?.InboundConveyorTiles.Add(ct);
             //Trace.WriteLine($"(Next Target Tile is: {newTargetTile.ConveyorTile.Tile.X},{newTargetTile.ConveyorTile.Tile.Y}) with {string.Join(", ", newTargetTile.InboundConveyorTiles.Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"))}");
             SomethingElseTargetTile?.InboundConveyorTiles.Add(ct);
-            Trace.WriteLine($"(Next Target Tile is: {SomethingElseTargetTile.ConveyorTile.Tile.X},{SomethingElseTargetTile.ConveyorTile.Tile.Y}) with {string.Join(", ", SomethingElseTargetTile.InboundConveyorTiles.Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"))}");
+            //Trace.WriteLine($"(Next Target Tile is: {SomethingElseTargetTile.ConveyorTile.Tile.X},{SomethingElseTargetTile.ConveyorTile.Tile.Y}) with {string.Join(", ", SomethingElseTargetTile.InboundConveyorTiles.Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"))}");
             return;
         }
 
@@ -263,12 +263,14 @@ public class MainWindowViewModel : ObservableObject
     public void GetHoverElements(Point? point)
     {
         if (!point.HasValue) return;
-        var tileR = GetTileAtLocation(point);
-        if (tileR is null) return;
-        if (tileR == EntitiesToHighlight.FirstOrDefault()) return;
-        HoveredEntityDescription = $"{tileR.X},{tileR.Y}";
+        var tile = GetTileAtLocation(point);
+        if (tile is null) return;
+        if (tile == EntitiesToHighlight.FirstOrDefault()) return;
+        var conveyorsTiles = (tile.ConveyorTile is null ? "" : $"{Environment.NewLine}CT: { string.Join(", ", tile.ConveyorTile.Conveyor.ConveyorTiles.Select(t => $"({t.Tile.X},{t.Tile.Y})"))}");
+        var landingTiles = tile.InboundConveyorTiles.Any() ? $"{Environment.NewLine}LT: {string.Join(", ", tile.InboundConveyorTiles.Select(t => $"({t.Tile.X},{t.Tile.Y})"))}" : "";
+        HoveredEntityDescription = $"{tile.X},{tile.Y}{conveyorsTiles}{landingTiles}";
         EntitiesToHighlight.Clear();
-        EntitiesToHighlight.Add(tileR);
+        EntitiesToHighlight.Add(tile);
     }
 
     public async Task<(List<Cell> SolutionCells, Cell[,] AllCells, long TimeToSolve, DateTime thisDate)> PathFinding(Tile destination, Tile source, bool allowDiagonal, DateTime requestDate, bool forceWalkable = false)

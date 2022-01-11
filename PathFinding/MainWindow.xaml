@@ -20,7 +20,7 @@
         <TabControl Width="110" DockPanel.Dock="Left">
             <TabItem Header="First">
                 <DockPanel LastChildFill="False">
-                    <TextBlock Text="{Binding HoveredEntityDescription}" DockPanel.Dock="Top"/>
+                    <TextBlock Text="{Binding HoveredEntityDescription}" DockPanel.Dock="Top" TextWrapping="Wrap" />
                     <Button Content="FindPath" Click="FindPath"  DockPanel.Dock="Top"/>
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Top">
                         <TextBlock Text="Always Calc"/>
