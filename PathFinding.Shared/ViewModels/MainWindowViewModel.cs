@@ -84,7 +84,7 @@ public class MainWindowViewModel : ObservableObject
         ResetCommand = new(Reset);
         ChangeDiagonalCommand = new(async (x) => { AllowDiagonal = x; await PlayerPathFinding(); });
         SetupMapString();
-        //UploadMapString(@"3972_G4MPKI6UrMG9OgaGZmcAmLpKbFnWit9TRq0AVogGrRYWkQKSyyR9MuH9AenBv5sSeR+axQ4OHRwOESlSJAS5Z9t9tbIp5bwH/db7lgtKvQ3fH/yDCwonLSau8Y5aty1SCrbmxv20+I7bysl9AkepUN0bb8SGsANKLOiJCCOVU9u/PdYBet5gBsp6XKAeo8WuNkoNM9i8x35DUGYmR2HshCll3M4bPrVsPmGmOrfbSlJsVi5AcEMLzgbP00rTOd1HKeRUSX4C8L9Z9J5BfOKtSR8zs44M8O4CnJ34LyKDi1+JtWLy3HcqERkmHi4KuYeEAVZOkn7jlh3Ids0oomZVmhr0uiun2U/QT+4nJNkSyHAzQT3YYiIzDiVYB7yJesuCYk2e3Df2H0LT9zIwdRrIDAGbymDcWdFEvewh74DIswbs9HJiTy4feNxBJYXpdsockTBZH82r/DHk/7rdEm5CteuHA4xBLV4z55I+3SfLdkRAOvlY8Pk2kj0A");
+        UploadMapString(@"3972_G4MPKI6UrMG9OgaGZmcAmLpKbFnWit9TRq0AVogGrRYWkQKSyyR9MuH9AenBv5sSeR+axQ4OHRwOESlSJAS5Z9t9tbIp5bwH/db7lgtKvQ3fH/yDCwonLSau8Y5aty1SCrbmxv20+I7bysl9AkepUN0bb8SGsANKLOiJCCOVU9u/PdYBet5gBsp6XKAeo8WuNkoNM9i8x35DUGYmR2HshCll3M4bPrVsPmGmOrfbSlJsVi5AcEMLzgbP00rTOd1HKeRUSX4C8L9Z9J5BfOKtSR8zs44M8O4CnJ34LyKDi1+JtWLy3HcqERkmHi4KuYeEAVZOkn7jlh3Ids0oomZVmhr0uiun2U/QT+4nJNkSyHAzQT3YYiIzDiVYB7yJesuCYk2e3Df2H0LT9zIwdRrIDAGbymDcWdFEvewh74DIswbs9HJiTy4feNxBJYXpdsockTBZH82r/DHk/7rdEm5CteuHA4xBLV4z55I+3SfLdkRAOvlY8Pk2kj0A");
     }
 
     public async Task Tick(Point? point, bool leftClicked)
@@ -93,7 +93,7 @@ public class MainWindowViewModel : ObservableObject
         if (!Paused)
         {
             //TickConveyor();
-            RandomlyAddItem();
+            //RandomlyAddItem();
             _tickCounter++;
             if (_tickCounter >= 5)
             {
@@ -129,7 +129,7 @@ public class MainWindowViewModel : ObservableObject
     {
         if (!hoveredTile.IsPassable || hoveredTile.ConveyorTile is not null) { return; }
 
-        Trace.WriteLine($"({hoveredTile.X},{hoveredTile.Y}) clicked.");
+        //Trace.WriteLine($"({hoveredTile.X},{hoveredTile.Y}) clicked.");
 
         //ToDo: Make it so `r` rotates this.
         //ToDo: I need to think about when conveyors should be joined and when they shouldn't be.
@@ -148,6 +148,8 @@ public class MainWindowViewModel : ObservableObject
 
         if (hoveredTile.InboundConveyorTiles.Any() && somethingElseTargetTile?.ConveyorTile is not null)
         {
+            foreach (var x in hoveredTile.InboundConveyorTiles) { x.NextConveyorTile = ct; }
+
             var tailConveyorTile = hoveredTile.InboundConveyorTiles.First(); //indeterministic
             hoveredTile.ConveyorTile = ct;
             ct.Conveyor = tailConveyorTile.Conveyor;
@@ -160,20 +162,23 @@ public class MainWindowViewModel : ObservableObject
                 ct.Conveyor.ConveyorTiles.Add(tile);
             }
             Conveyors.Remove(otherConveyor);
+            Trace.WriteLine($"0. Added new ct ({ct.Tile.X},{ct.Tile.Y}) to existing conveyor since it lands on this one. Conveyor = {string.Join(", ", tailConveyorTile.Conveyor.ConveyorTiles.Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"))}.");
             return;
         }
-
 
         //If any conveyorTile would land on the highlighted one, then make add this conveyorTile to that conveyor.
         if (hoveredTile.InboundConveyorTiles.Any())
         {
+            foreach (var x in hoveredTile.InboundConveyorTiles) { x.NextConveyorTile = ct; }
             var tailConveyorTile = hoveredTile.InboundConveyorTiles.First(); //indeterministic
             hoveredTile.ConveyorTile = ct;
             Trace.WriteLine($"({ct.Tile.X},{ct.Tile.Y}) conveyorTile set");
             ct.Conveyor = tailConveyorTile.Conveyor;
+            ct.NextConveyorTile = somethingElseTargetTile?.ConveyorTile;
+            Trace.WriteLine($"CT's ({ct.Location.X},{ct.Location.Y})'s next tile is: ({ct.NextConveyorTile?.Location.X},{ct.NextConveyorTile?.Location.Y})");
             tailConveyorTile.Conveyor.ConveyorTiles.Add(ct);
             somethingElseTargetTile?.InboundConveyorTiles.Add(ct);
-            Trace.WriteLine($"Added new ct ({ct.Tile.X},{ct.Tile.Y}) to existing conveyor since it lands on this one. Conveyor = {string.Join(", ", tailConveyorTile.Conveyor.ConveyorTiles.Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"))}.");
+            Trace.WriteLine($"1. Added new ct ({ct.Tile.X},{ct.Tile.Y}) to existing conveyor since it lands on this one. Conveyor = {string.Join(", ", tailConveyorTile.Conveyor.ConveyorTiles.Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"))}.");
             return;
         }
 
@@ -185,7 +190,7 @@ public class MainWindowViewModel : ObservableObject
             ct.NextConveyorTile = somethingElseTargetTile.ConveyorTile;
             ct.Conveyor.ConveyorTiles.Add(ct);
             hoveredTile.ConveyorTile = ct;
-            Trace.WriteLine($"This ct ({ct.Tile.X},{ct.Tile.Y}) lands on another conveyorTile. Conveyor = {string.Join(", ", somethingElseTargetTile.ConveyorTile.Conveyor.ConveyorTiles.Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"))}.");
+            Trace.WriteLine($"2. This ct ({ct.Tile.X},{ct.Tile.Y}) lands on another conveyorTile. Conveyor = {string.Join(", ", somethingElseTargetTile.ConveyorTile.Conveyor.ConveyorTiles.Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"))}.");
             Trace.WriteLine($"({hoveredTile.X},{hoveredTile.Y}) conveyorTile set");
             somethingElseTargetTile?.InboundConveyorTiles.Add(ct);
             return;
@@ -199,7 +204,7 @@ public class MainWindowViewModel : ObservableObject
         Conveyors.Add(c);
         ct.Tile.TileRole = TileRole.Conveyor;
         somethingElseTargetTile?.InboundConveyorTiles.Add(ct);
-        Trace.WriteLine($"This ct ({ct.Tile.X},{ct.Tile.Y}) constitutes a new Conveyor! Conveyor = {string.Join(", ", ct.Conveyor.ConveyorTiles.Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"))}.");
+        Trace.WriteLine($"3. This ct ({ct.Tile.X},{ct.Tile.Y}) constitutes a new Conveyor! Conveyor = {string.Join(", ", ct.Conveyor.ConveyorTiles.Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"))}.");
     }
 
     public async void HandleRightClick(Point? point)
@@ -345,13 +350,64 @@ public class MainWindowViewModel : ObservableObject
     {
         if (!point.HasValue) return;
         var tile = GetTileAtLocation(point);
-        if (tile is null) return;
+        if (tile is null || tile.ConveyorTile is null) return;
 
-        //var c = new Conveyor();
-        //var ct = new ConveyorTiles() { Tile = hoveredTile, Direction = (X: 1, Y: 1), Conveyor = c };
-        //ct.Setup();
-        //c.ConveyorTiles.Add(ct);
-        //Conveyors.Add(c);
+        var ct = tile.ConveyorTile;
+
+        var listOfThings = new List<(int, int)>() { (1, 0), (0, 1), (-1, 0), (0, -1) };
+
+        var listOfThings2 = new List<ConveyorTile.Coordinate>() { new(1, 0), new(0, 1), new(-1, 0), new(0, -1) };
+
+        (int X, int Y) nextDirection = listOfThings[(listOfThings.IndexOf(ct.Direction) + 1) % listOfThings.Count];
+        var nextDirection2 = listOfThings2[(listOfThings2.IndexOf(new(ct.Direction.X, ct.Direction.Y)) + 1) % listOfThings2.Count];
+
+        var x = ct.Location.X - nextDirection.X;
+        var y = ct.Location.Y - nextDirection.Y;
+        var calledNext = ct.Location - nextDirection2;
+
+        //go through all of the conveyors that would have been connected. Subtract them from the current conveyor's conveyorTiles
+
+        var listOfRemovableCts = new List<ConveyorTile>();
+        var theNext = ct.NextConveyorTile;
+
+        while (theNext is not null)
+        {
+            listOfRemovableCts.Add(theNext);
+            theNext = theNext.NextConveyorTile;
+        }
+        Trace.WriteLine($"{listOfRemovableCts.Count} items in listOfRemovableCts.");
+
+        var newConveyor = new Conveyor();
+        var temporaryCollection = ct.Conveyor.ConveyorTiles.Where(cc => !listOfRemovableCts.Contains(cc)).ToList();
+        Trace.WriteLine($"{temporaryCollection.Count} conveyorTiles can be removed.");
+        foreach (var conveyorTile in temporaryCollection)
+        {
+            ct.Conveyor.ConveyorTiles.Remove(conveyorTile);
+            newConveyor.ConveyorTiles.Add(conveyorTile);
+            conveyorTile.Conveyor = newConveyor;
+        }
+
+        Conveyors.Add(newConveyor);
+
+        Trace.WriteLine($"Next target = ({calledNext.X},{calledNext.Y}).");
+
+        if (ct.Location.X - ct.Location.X >= 0 && ct.Location.X - ct.Location.X < TileWidth && ct.Location.Y - ct.Location.Y >= 0 && ct.Location.Y - ct.Location.Y < TileHeight)
+        {
+            var somethingElseTargetTile = State.TileGrid[ct.Location.X - ct.Direction.X, ct.Location.Y - ct.Direction.Y];
+            somethingElseTargetTile.InboundConveyorTiles.Remove(ct);
+        }
+
+
+
+        if (ct.Location.X - nextDirection2.X >= 0 && ct.Location.X - nextDirection2.X < TileWidth && ct.Location.Y - nextDirection2.Y >= 0 && ct.Location.Y - nextDirection2.Y < TileHeight)
+        {
+            var somethingElseTargetTile = State.TileGrid[ct.Location.X - nextDirection2.X, ct.Location.Y - nextDirection2.Y];
+            somethingElseTargetTile.InboundConveyorTiles.Add(ct);
+        }
+
+
+        ct.Direction = nextDirection;
+        ct.Setup();
     }
 
     private async Task TryFlipElement(Tile tile)
@@ -517,6 +573,7 @@ public class MainWindowViewModel : ObservableObject
 
         var conveyorIndex = _rand.Next(0, Conveyors.Count);
         var conveyor = Conveyors[conveyorIndex];
+        if (!conveyor.ConveyorTiles.Any()) return;
         var conveyorTile = conveyor.ConveyorTiles.First();
         if (conveyorTile.Items.Any() || conveyorTile.NextConveyorTile is null) return;
         var x = _rand.NextDouble() > 0.5 ? 0 : MaxCellNumber - 1;
@@ -550,7 +607,7 @@ public class MainWindowViewModel : ObservableObject
 
             var (nextX, nextY, nextTile) = item.GetNextLocation();
 
-            if (nextTile.Direction.X + nextTile.Direction.Y == 0) { item.DeleteItem(); continue; }
+            if (nextTile is null || nextTile.Direction.X + nextTile.Direction.Y == 0) { item.DeleteItem(); continue; }
 
             var anotherItem = nextTile.Items.FirstOrDefault(i => i.X == nextX && i.Y == nextY);
             if (anotherItem is not null) { /*Trace.WriteLine($"Another item is in the way at: Cell=({anotherItem.ConveyorTiles.Tile.X},{anotherItem.ConveyorTiles.Tile.Y}) ({anotherItem.X},{anotherItem.Y})" + $". An item is at Cell=({item.ConveyorTiles.Tile.X},{item.ConveyorTiles.Tile.Y}) ({item.X},{item.Y}). Our velocity is: {item.ConveyorTiles.Direction}");*/ continue; }

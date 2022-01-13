@@ -11,7 +11,6 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using System.Numerics;
-using System.Windows.Data;
 using PathFinding.Core;
 using PathFinding.Annotations;
 using PathFinding.Shared.Models;
@@ -80,7 +79,15 @@ public partial class MainWindow
             _dt = dt;
         }
         _ticksPerSecond++;
-        await Vm.Tick(_point, _clicked);
+        try
+        {
+            await Vm.Tick(_point, _clicked);
+        }
+        catch (Exception ee)
+        {
+            Console.WriteLine(ee);
+        }
+
         var sw = new Stopwatch();
         sw.Start();
         Wb.Lock();
@@ -290,6 +297,8 @@ public partial class MainWindow
             Vm.Paused = !Vm.Paused;
             LastPressedKeys.Add(Key.Space);
         }
+
+
 
         if (!Keyboard.IsKeyDown(Key.C) && LastPressedKeys.Contains(Key.C)) LastPressedKeys.Remove(Key.C);
         if (!Keyboard.IsKeyDown(Key.R) && LastPressedKeys.Contains(Key.R)) LastPressedKeys.Remove(Key.R);

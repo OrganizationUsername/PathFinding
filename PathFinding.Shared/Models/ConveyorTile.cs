@@ -1,4 +1,7 @@
-﻿namespace PathFinding.Shared.Models;
+﻿using System.Reflection.Metadata.Ecma335;
+using Microsoft.VisualBasic.CompilerServices;
+
+namespace PathFinding.Shared.Models;
 
 public class ConveyorTile
 {
@@ -12,6 +15,7 @@ public class ConveyorTile
     public List<Item> Items = new();
     public Conveyor Conveyor;
     public ConveyorTile NextConveyorTile;
+    public Coordinate Location => new() { X = Tile.X, Y = Tile.Y };
 
     public void Setup()
     {
@@ -22,5 +26,16 @@ public class ConveyorTile
         if (Direction.Y < 0) conveyorDirection = (MaxCellNumber - 1, -1);
         Lane = conveyorDirection;
     }
+
+    public struct Coordinate
+    {
+        public int X;
+        public int Y;
+
+        public Coordinate(int x, int y) { X = x; Y = y; }
+        public static Coordinate operator +(Coordinate l, Coordinate r) => new() { X = l.X + r.X, Y = l.Y + r.Y };
+        public static Coordinate operator -(Coordinate l, Coordinate r) => new() { X = l.X - r.X, Y = l.Y - r.Y };
+    }
+
 }
 
