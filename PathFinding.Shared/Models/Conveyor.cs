@@ -8,4 +8,9 @@ public class Conveyor
     public List<ConveyorTile> ConveyorTiles { get; set; } = new();
     public List<Item> Items = new();
     public int Tick;
+
+    public string GetTileText()
+    {
+        return string.Join(", ", ConveyorTiles.Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"));
+    }
 }

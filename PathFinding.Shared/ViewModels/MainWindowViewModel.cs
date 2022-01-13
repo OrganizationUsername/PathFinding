@@ -190,7 +190,7 @@ public class MainWindowViewModel : ObservableObject
             ct.NextConveyorTile = somethingElseTargetTile.ConveyorTile;
             ct.Conveyor.ConveyorTiles.Add(ct);
             hoveredTile.ConveyorTile = ct;
-            Trace.WriteLine($"2. This ct ({ct.Tile.X},{ct.Tile.Y}) lands on another conveyorTile. Conveyor = {string.Join(", ", somethingElseTargetTile.ConveyorTile.Conveyor.ConveyorTiles.Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"))}.");
+            Trace.WriteLine($"2. This ct ({ct.Tile.X},{ct.Tile.Y}) lands on another conveyorTile. Conveyor = {somethingElseTargetTile.ConveyorTile.Conveyor.GetTileText()}.");
             Trace.WriteLine($"({hoveredTile.X},{hoveredTile.Y}) conveyorTile set");
             somethingElseTargetTile?.InboundConveyorTiles.Add(ct);
             return;
@@ -218,7 +218,7 @@ public class MainWindowViewModel : ObservableObject
                 await HandleRightClickPlayerMode(tile);
                 break;
             case ClickMode.Conveyor:
-                await HandleRightClickAddConveyorNode(tile);
+                //await HandleRightClickAddConveyorNode(tile);
                 break;
             case ClickMode.Item:
                 break;
@@ -357,12 +357,8 @@ public class MainWindowViewModel : ObservableObject
         var listOfThings = new List<(int, int)>() { (1, 0), (0, 1), (-1, 0), (0, -1) };
 
         var listOfThings2 = new List<ConveyorTile.Coordinate>() { new(1, 0), new(0, 1), new(-1, 0), new(0, -1) };
-
-        (int X, int Y) nextDirection = listOfThings[(listOfThings.IndexOf(ct.Direction) + 1) % listOfThings.Count];
         var nextDirection2 = listOfThings2[(listOfThings2.IndexOf(new(ct.Direction.X, ct.Direction.Y)) + 1) % listOfThings2.Count];
 
-        var x = ct.Location.X - nextDirection.X;
-        var y = ct.Location.Y - nextDirection.Y;
         var calledNext = ct.Location - nextDirection2;
 
         //go through all of the conveyors that would have been connected. Subtract them from the current conveyor's conveyorTiles
@@ -393,20 +389,39 @@ public class MainWindowViewModel : ObservableObject
 
         if (ct.Location.X - ct.Location.X >= 0 && ct.Location.X - ct.Location.X < TileWidth && ct.Location.Y - ct.Location.Y >= 0 && ct.Location.Y - ct.Location.Y < TileHeight)
         {
-            var somethingElseTargetTile = State.TileGrid[ct.Location.X - ct.Direction.X, ct.Location.Y - ct.Direction.Y];
-            somethingElseTargetTile.InboundConveyorTiles.Remove(ct);
+            var currentTargetTile = State.TileGrid[ct.Location.X - ct.Direction.X, ct.Location.Y - ct.Direction.Y];
+            if (currentTargetTile.InboundConveyorTiles.Remove(ct))
+            {
+                Trace.WriteLine($"Removed ({ct.Location.X},{ct.Location.Y}) from ({currentTargetTile.X}, {currentTargetTile.Y})'s inbound."); //good
+            }
         }
-
-
 
         if (ct.Location.X - nextDirection2.X >= 0 && ct.Location.X - nextDirection2.X < TileWidth && ct.Location.Y - nextDirection2.Y >= 0 && ct.Location.Y - nextDirection2.Y < TileHeight)
         {
-            var somethingElseTargetTile = State.TileGrid[ct.Location.X - nextDirection2.X, ct.Location.Y - nextDirection2.Y];
-            somethingElseTargetTile.InboundConveyorTiles.Add(ct);
+            var upcomingTargetTile = State.TileGrid[ct.Location.X - nextDirection2.X, ct.Location.Y - nextDirection2.Y];
+            //if upcomingTargetTile has exactly zero incoming, but has a conveyorTile
+            if (upcomingTargetTile.InboundConveyorTiles.Count == 0 && upcomingTargetTile.ConveyorTile is not null)
+            {
+                //Get all current conveyors in a list
+                var existing = ct.Conveyor.ConveyorTiles.ToList();
+                Trace.WriteLine("Existing= " + string.Join(", ", existing.Select(x => $"({x.Location.X},{x.Location.Y})")));
+                var nextConveyor = upcomingTargetTile.ConveyorTile.Conveyor;
+                Conveyors.Remove(ct.Conveyor);
+                foreach (var c in existing)
+                {
+                    c.Conveyor = nextConveyor;
+                    //ct.Conveyor.ConveyorTiles.Remove(c);
+                    nextConveyor.ConveyorTiles.Add(c);
+
+                    Trace.WriteLine($"Changed ({c.Location.X},{c.Location.Y})'s conveyor to {nextConveyor.GetTileText()}");
+                }
+                //Conveyors.Remove(ct.Conveyor);
+            }
+            upcomingTargetTile.InboundConveyorTiles.Add(ct);
         }
 
 
-        ct.Direction = nextDirection;
+        ct.Direction = (nextDirection2.X, nextDirection2.Y);
         ct.Setup();
     }
 
