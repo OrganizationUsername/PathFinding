@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PathFinding.Core;
 using PathFinding.Persistence;
+using PathFinding.Shared.Helpers;
 using PathFinding.Shared.Models;
 using Point = System.Numerics.Vector2;
 
@@ -61,6 +62,8 @@ public class MainWindowViewModel : ObservableObject
     public ClickMode ClickMode { get => _clickMode; set { SetProperty(ref _clickMode, value); SelectedStringMode = _clickMode.ToString(); } }
     public RelayCommand ResetCommand { get; set; }
     public AsyncRelayCommand<bool> ChangeDiagonalCommand { get; }
+    public List<ConveyorTile.Coordinate> ListOfDirections = new() { (1, 0), (0, 1), (-1, 0), (0, -1) };
+
 
     public MainWindowViewModel(IStatePersistence statePersistence)
     {
@@ -349,69 +352,101 @@ public class MainWindowViewModel : ObservableObject
 
     public void TryRotateConveyor(Point? point)
     {
-        if (!point.HasValue) return;
-        var tile = GetTileAtLocation(point);
-        if (tile is null || tile.ConveyorTile is null) return;
+        if (!point.HasValue || GetTileAtLocation(point) is not { ConveyorTile: { } ct }) return;
 
-        var ct = tile.ConveyorTile;
+        var nextDirection = ListOfDirections[(ListOfDirections.IndexOf((ct.Direction.X, ct.Direction.Y)) + 1) % ListOfDirections.Count];
+        var calledNext = ct.Location - nextDirection;
 
-        var listOfThings2 = new List<ConveyorTile.Coordinate>() { new(1, 0), new(0, 1), new(-1, 0), new(0, -1) };
-        var nextDirection2 = listOfThings2[(listOfThings2.IndexOf(new(ct.Direction.X, ct.Direction.Y)) + 1) % listOfThings2.Count];
-        var calledNext = ct.Location - nextDirection2;
+        var hoveredCtNextConveyorTile = ct.NextConveyorTile;
+        var listOfRemovableCts = GetAllDownstreamConveyorTiles(hoveredCtNextConveyorTile);
 
-        var listOfRemovableCts = new List<ConveyorTile>();
-        var theNext = ct.NextConveyorTile;
+#if false
+        //var nextDirection2 = listOfThings2[(listOfThings2.IndexOf(new(ct.Direction.X, ct.Direction.Y)) + 1) % listOfThings2.Count];
+        //--> Coordinate should get an implicit converter from a valuetuple
+        //public static implicit operator Coordinate((int X, int Y) tuple) => new(tuple.X, tuple.Y);
 
-        while (theNext is not null && !listOfRemovableCts.Contains(theNext))
-        {
-            listOfRemovableCts.Add(theNext);
-            theNext = theNext.NextConveyorTile;
-        }
-        Trace.WriteLine($"{listOfRemovableCts.Count} items in listOfRemovableCts.");
+        //var theNext = ct.NextConveyorTile;
+        //while (theNext is not null && !listOfRemovableCts.Contains(theNext)){listOfRemovableCts.Add(theNext);theNext = theNext.NextConveyorTile;}
+        //--> should be its own function, too
+
+        //why is listOfRemovableCts a list and not a hashset?
+
+        //you should create an extension method TraceCount() for IEnumerable
+
+
+        //foreach (var conveyorTile in temporaryCollection)
+        //            {
+        //                ct.Conveyor.ConveyorTiles.Remove(conveyorTile);
+        //                newConveyor.ConveyorTiles.Add(conveyorTile);
+        //                conveyorTile.Conveyor = newConveyor;
+        //            }
+        //use AddRange and RemoveRange
+
+        //moving tiles from one conveyor to another should become a method.
+        //ref ConveyorTilesTransfer
+
+
+        //if (ct.Location.X - ct.Direction.X >= 0 && ct.Location.X - ct.Direction.X < TileWidth && ct.Location.Y - ct.Direction.Y >= 0 && ct.Location.Y - ct.Direction.Y < TileHeight)
+        //            a little formatting will help make this expression understandable
+
+you calculate ct.Location.X - ct.Direction.X 3 times.use a local for that.same for ct.Location.Y - ct.Direction.Y
+
+
+        //if (currentTargetTile.InboundConveyorTiles.Remove(ct))
+        //                {
+        //                    Trace.WriteLine($"Removed ({ct.Location.X},{ct.Location.Y}) from ({currentTargetTile.X}, {currentTargetTile.Y})'s inbound."); //good
+        //                }
+        //        --> sounds like you want a method RemoveFromInbound 🙂
+
+                var existing = ct.Conveyor.ConveyorTiles.ToList();
+        i think your lists should be named so that the reader can understand what's actually in them.
+
+#endif
+        listOfRemovableCts.TraceCount(nameof(listOfRemovableCts));
 
         var newConveyor = new Conveyor();
         var temporaryCollection = ct.Conveyor.ConveyorTiles.Where(cc => !listOfRemovableCts.Contains(cc)).ToList();
-        Trace.WriteLine($"{temporaryCollection.Count} conveyorTiles can be removed.");
-        foreach (var conveyorTile in temporaryCollection)
-        {
-            ct.Conveyor.ConveyorTiles.Remove(conveyorTile);
-            newConveyor.ConveyorTiles.Add(conveyorTile);
-            conveyorTile.Conveyor = newConveyor;
-        }
+        temporaryCollection.TraceCount("conveyorTiles to be removed");
+
+        ConveyorTilesTransfer(ct, temporaryCollection, newConveyor);
 
         Conveyors.Add(newConveyor);
         Trace.WriteLine($"Next target = ({calledNext.X},{calledNext.Y}).");
         ct.NextConveyorTile = null;
         //ToDo: All of this logic is really wonky. 
-        if (ct.Location.X - ct.Direction.X >= 0 && ct.Location.X - ct.Direction.X < TileWidth && ct.Location.Y - ct.Direction.Y >= 0 && ct.Location.Y - ct.Direction.Y < TileHeight)
+
+        var current = ct.Location - ct.Direction;
+        if (current.X >= 0 && current.X < TileWidth && current.Y >= 0 && current.Y < TileHeight)
         {
-            var currentTargetTile = State.TileGrid[ct.Location.X - ct.Direction.X, ct.Location.Y - ct.Direction.Y];
-            if (currentTargetTile.InboundConveyorTiles.Remove(ct))
-            {
-                Trace.WriteLine($"Removed ({ct.Location.X},{ct.Location.Y}) from ({currentTargetTile.X}, {currentTargetTile.Y})'s inbound."); //good
-            }
+            var currentTargetTile = State.TileGrid[current.X, current.Y];
+            currentTargetTile.RemoveInboundConveyors(ct);
         }
 
-        if (ct.Location.X - nextDirection2.X >= 0 && ct.Location.X - nextDirection2.X < TileWidth && ct.Location.Y - nextDirection2.Y >= 0 && ct.Location.Y - nextDirection2.Y < TileHeight)
+        var next = ct.Location - nextDirection;
+        if (next.X >= 0 && next.X < TileWidth && next.Y >= 0 && next.Y < TileHeight)
         {
-            var upcomingTargetTile = State.TileGrid[ct.Location.X - nextDirection2.X, ct.Location.Y - nextDirection2.Y];
+            //var upcomingTargetTile = State.TileGrid[ct.Location.X - nextDirection.X, ct.Location.Y - nextDirection.Y];
+            var upcomingTargetTile = State.TileGrid[next.X, next.Y];
             //if upcomingTargetTile has exactly zero incoming, but has a conveyorTile
-            if (upcomingTargetTile.ConveyorTile is not null && upcomingTargetTile.ConveyorTile.NextConveyorTile is not null && upcomingTargetTile.ConveyorTile.NextConveyorTile != ct)
+            //(upcomingTargetTile.ConveyorTile.NextConveyorTile != ct) Ensures --><-- is prevented
+            if (upcomingTargetTile.HasNextConveyorTile && upcomingTargetTile.ConveyorTile.NextConveyorTile != ct)
             {
-                ct.NextConveyorTile = upcomingTargetTile.ConveyorTile; //ram goes brr
+                ct.NextConveyorTile = upcomingTargetTile.ConveyorTile;
             }
             if (upcomingTargetTile.InboundConveyorTiles.Count == 0 && upcomingTargetTile.ConveyorTile is not null)
             {
                 //Get all current conveyors in a list
                 var preliminaryConveyor = ct.Conveyor;
-                var existing = ct.Conveyor.ConveyorTiles.ToList();
-                Trace.WriteLine("Existing= " + string.Join(", ", existing.Select(x => $"({x.Location.X},{x.Location.Y})")));
+                // ReSharper disable once InconsistentNaming
+                var hoveredConveyorTileConveyors_ConveyorTiles = ct.Conveyor.ConveyorTiles.ToList();
+                //Trace.WriteLine("Existing= " + hoveredConveyorTileConveyors_ConveyorTiles.OutputCoordinates());
+                Trace.WriteLine("Existing= " + string.Join(", ", hoveredConveyorTileConveyors_ConveyorTiles.Select(x => $"({x.Location},{x.Location.Y})")));
                 var nextConveyor = upcomingTargetTile.ConveyorTile.Conveyor;
-                foreach (var c in existing)
+                foreach (var c in hoveredConveyorTileConveyors_ConveyorTiles) //hctc_ct?
                 {
                     preliminaryConveyor.ConveyorTiles.Remove(c);
                     c.Conveyor = nextConveyor;
-                    //ct.Conveyor.ConveyorTiles.Remove(c);
+                    ct.Conveyor.ConveyorTiles.Remove(c);
                     nextConveyor.ConveyorTiles.Add(c);
                     Trace.WriteLine($"Changed ({c.Location.X},{c.Location.Y})'s conveyor to {nextConveyor.GetTileText()}");
                 }
@@ -420,12 +455,32 @@ public class MainWindowViewModel : ObservableObject
                     Trace.WriteLine($"Removing conveyor: {preliminaryConveyor.GetTileText()}");
                     Conveyors.Remove(preliminaryConveyor);
                 }
-                //Conveyors.Remove(ct.Conveyor);
+                //Conveyors.Remove(ct.Conveyor); //This is great for interdimensional conveyors only.
             }
             upcomingTargetTile.InboundConveyorTiles.Add(ct);
         }
-        ct.Direction = (nextDirection2.X, nextDirection2.Y);
+        ct.Direction = (nextDirection.X, nextDirection.Y);
         ct.Setup();
+    }
+
+    private static void ConveyorTilesTransfer(ConveyorTile ct, List<ConveyorTile> temporaryCollection, Conveyor newConveyor)
+    {
+        ct.Conveyor.ConveyorTiles.RemoveItems(temporaryCollection);
+        newConveyor.ConveyorTiles.AddRange(temporaryCollection);
+        temporaryCollection.ModifyItems(x => x.Conveyor = newConveyor);
+    }
+
+    private static HashSet<ConveyorTile> GetAllDownstreamConveyorTiles(ConveyorTile theNext)
+    {
+        var listOfRemovableCts = new HashSet<ConveyorTile>();
+        // (!listOfRemovableCts.Contains(theNext)) prevents --><--
+        while (theNext is not null && !listOfRemovableCts.Contains(theNext))
+        {
+            listOfRemovableCts.Add(theNext);
+            theNext = theNext.NextConveyorTile;
+        }
+
+        return listOfRemovableCts;
     }
 
     private async Task TryFlipElement(Tile tile)

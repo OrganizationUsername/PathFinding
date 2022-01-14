@@ -1,4 +1,5 @@
-﻿namespace PathFinding.Shared.Models;
+﻿using System.Diagnostics;
+namespace PathFinding.Shared.Models;
 
 public enum TileRole { Nothing = 0, Source = 1, Destination = 2, Conveyor = 3 }
 public class Tile
@@ -12,7 +13,8 @@ public class Tile
     public int ChunkId = -1;
     public string Description => Name;
     public ConveyorTile ConveyorTile { get; set; }
-    public List<ConveyorTile> InboundConveyorTiles { get; set; } = new(4);
+    public bool HasNextConveyorTile => ConveyorTile?.NextConveyorTile is not null;
+    public List<ConveyorTile> InboundConveyorTiles { get; set; } = new(Constants.Constants.RectangularGridSides);
     public Tile(int x, int y, bool isPassable, int id)
     {
         Id = id;
@@ -20,6 +22,11 @@ public class Tile
         Y = y;
         IsPassable = isPassable;
         Name = $"{x},{y}";
+    }
+
+    public void RemoveInboundConveyors(ConveyorTile ct)
+    {
+        if (InboundConveyorTiles.Remove(ct)) { Trace.WriteLine($"Removed ({this.X},{this.Y}) from ({this.X}, {this.Y})'s inbound."); }
     }
 }
 

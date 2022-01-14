@@ -35,6 +35,8 @@ public class ConveyorTile
         public Coordinate(int x, int y) { X = x; Y = y; }
         public static Coordinate operator +(Coordinate l, Coordinate r) => new() { X = l.X + r.X, Y = l.Y + r.Y };
         public static Coordinate operator -(Coordinate l, Coordinate r) => new() { X = l.X - r.X, Y = l.Y - r.Y };
+        public static implicit operator Coordinate((int X, int Y) tuple) => new(tuple.X, tuple.Y);
+        public override string ToString() => $"({X},{Y})";
     }
 
 }

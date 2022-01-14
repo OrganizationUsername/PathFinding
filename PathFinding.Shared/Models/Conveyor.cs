@@ -11,6 +11,13 @@ public class Conveyor
 
     public string GetTileText()
     {
-        return string.Join(", ", ConveyorTiles.OrderBy(ctx => ctx.Location.X).ThenBy(ctx => ctx.Location.Y).Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"));
+        return string
+            .Join(", ",
+            ConveyorTiles
+#if DEBUG
+            .OrderBy(ctx => ctx.Location.X)
+            .ThenBy(ctx => ctx.Location.Y)
+#endif
+            .Select(ctx => $"({ctx.Tile.X},{ctx.Tile.Y})"));
     }
 }

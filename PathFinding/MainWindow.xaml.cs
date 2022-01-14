@@ -298,8 +298,6 @@ public partial class MainWindow
             LastPressedKeys.Add(Key.Space);
         }
 
-
-
         if (!Keyboard.IsKeyDown(Key.C) && LastPressedKeys.Contains(Key.C)) LastPressedKeys.Remove(Key.C);
         if (!Keyboard.IsKeyDown(Key.R) && LastPressedKeys.Contains(Key.R)) LastPressedKeys.Remove(Key.R);
         if (!Keyboard.IsKeyDown(Key.Space) && LastPressedKeys.Contains(Key.Space)) LastPressedKeys.Remove(Key.Space);
