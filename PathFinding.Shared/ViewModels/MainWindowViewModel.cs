@@ -360,48 +360,6 @@ public class MainWindowViewModel : ObservableObject
         var hoveredCtNextConveyorTile = ct.NextConveyorTile;
         var listOfRemovableCts = GetAllDownstreamConveyorTiles(hoveredCtNextConveyorTile);
 
-#if false
-        //var nextDirection2 = listOfThings2[(listOfThings2.IndexOf(new(ct.Direction.X, ct.Direction.Y)) + 1) % listOfThings2.Count];
-        //--> Coordinate should get an implicit converter from a valuetuple
-        //public static implicit operator Coordinate((int X, int Y) tuple) => new(tuple.X, tuple.Y);
-
-        //var theNext = ct.NextConveyorTile;
-        //while (theNext is not null && !listOfRemovableCts.Contains(theNext)){listOfRemovableCts.Add(theNext);theNext = theNext.NextConveyorTile;}
-        //--> should be its own function, too
-
-        //why is listOfRemovableCts a list and not a hashset?
-
-        //you should create an extension method TraceCount() for IEnumerable
-
-
-        //foreach (var conveyorTile in temporaryCollection)
-        //            {
-        //                ct.Conveyor.ConveyorTiles.Remove(conveyorTile);
-        //                newConveyor.ConveyorTiles.Add(conveyorTile);
-        //                conveyorTile.Conveyor = newConveyor;
-        //            }
-        //use AddRange and RemoveRange
-
-        //moving tiles from one conveyor to another should become a method.
-        //ref ConveyorTilesTransfer
-
-
-        //if (ct.Location.X - ct.Direction.X >= 0 && ct.Location.X - ct.Direction.X < TileWidth && ct.Location.Y - ct.Direction.Y >= 0 && ct.Location.Y - ct.Direction.Y < TileHeight)
-        //            a little formatting will help make this expression understandable
-
-you calculate ct.Location.X - ct.Direction.X 3 times.use a local for that.same for ct.Location.Y - ct.Direction.Y
-
-
-        //if (currentTargetTile.InboundConveyorTiles.Remove(ct))
-        //                {
-        //                    Trace.WriteLine($"Removed ({ct.Location.X},{ct.Location.Y}) from ({currentTargetTile.X}, {currentTargetTile.Y})'s inbound."); //good
-        //                }
-        //        --> sounds like you want a method RemoveFromInbound 🙂
-
-                var existing = ct.Conveyor.ConveyorTiles.ToList();
-        i think your lists should be named so that the reader can understand what's actually in them.
-
-#endif
         listOfRemovableCts.TraceCount(nameof(listOfRemovableCts));
 
         var newConveyor = new Conveyor();
@@ -413,8 +371,8 @@ you calculate ct.Location.X - ct.Direction.X 3 times.use a local for that.same f
         Conveyors.Add(newConveyor);
         Trace.WriteLine($"Next target = ({calledNext.X},{calledNext.Y}).");
         ct.NextConveyorTile = null;
-        //ToDo: All of this logic is really wonky. 
 
+        //ToDo: All of this logic is really wonky. 
         var current = ct.Location - ct.Direction;
         if (current.X >= 0 && current.X < TileWidth && current.Y >= 0 && current.Y < TileHeight)
         {
@@ -425,14 +383,13 @@ you calculate ct.Location.X - ct.Direction.X 3 times.use a local for that.same f
         var next = ct.Location - nextDirection;
         if (next.X >= 0 && next.X < TileWidth && next.Y >= 0 && next.Y < TileHeight)
         {
-            //var upcomingTargetTile = State.TileGrid[ct.Location.X - nextDirection.X, ct.Location.Y - nextDirection.Y];
             var upcomingTargetTile = State.TileGrid[next.X, next.Y];
-            //if upcomingTargetTile has exactly zero incoming, but has a conveyorTile
             //(upcomingTargetTile.ConveyorTile.NextConveyorTile != ct) Ensures --><-- is prevented
             if (upcomingTargetTile.HasNextConveyorTile && upcomingTargetTile.ConveyorTile.NextConveyorTile != ct)
             {
                 ct.NextConveyorTile = upcomingTargetTile.ConveyorTile;
             }
+
             if (upcomingTargetTile.InboundConveyorTiles.Count == 0 && upcomingTargetTile.ConveyorTile is not null)
             {
                 //Get all current conveyors in a list
