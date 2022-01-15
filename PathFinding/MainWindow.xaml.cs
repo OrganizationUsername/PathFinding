@@ -395,7 +395,14 @@ public partial class MainWindow
         var point = PointToVector(e.GetPosition(sender as Image));
         _clicked = e.LeftButton == MouseButtonState.Pressed;
         Vm.LeftButtonClick = _clicked;
-        await Vm.HandleLeftClick(point);
+        try
+        {
+            await Vm.HandleLeftClick(point);
+        }
+        catch (Exception ee)
+        {
+            Console.WriteLine(ee);
+        }
     }
 
     private void UIElement_OnMouseRightButtonDown(object sender, MouseButtonEventArgs e) => Vm.HandleRightClick(PointToVector(e.GetPosition(sender as Image)));

@@ -5,10 +5,9 @@ namespace PathFinding.Shared.Helpers;
 
 public static class Extensions
 {
-    public static IEnumerable<T> TraceCount<T>(this IEnumerable<T> enumerable, string somethingToSay)
+    public static IEnumerable<T> TraceCount<T>(this List<T> enumerable, string somethingToSay)
     {
-
-        Trace.WriteLine($"{somethingToSay}: {enumerable.Count()}");
+        Trace.WriteLine($"{somethingToSay}: {enumerable.Count}");
         return enumerable;
     }
 
@@ -28,6 +27,4 @@ public static class Extensions
     {
         return string.Join(seprator, enumerable.Select(x => $"{x}"));
     }
-
-
 }

@@ -6,16 +6,30 @@ namespace PathFinding.Shared.Models;
 public class ConveyorTile
 {
     public static int MaxCellNumber;
+    public static Tile[,] Tiles;
     public (int X, int Y) Direction;
     /// <summary>
     /// If X == 0 grid is left. If X==1 cellMax is right. If X== -1, Y determines left/right side.
     /// </summary>
     public (int X, int Y) Lane;
     public Tile Tile;
+    public Tile TargetTile
+    {
+        get
+        {
+            var tempX = Tile.X - Direction.X;
+            var tempY = Tile.Y - Direction.Y;
+            if (tempX < 0 && tempX >= Tiles.GetLength(0)) { return null; }
+            if (tempY < 0 && tempY >= Tiles.GetLength(1)) { return null; }
+            return Tiles[tempX, tempY];
+        }
+    }
+
     public List<Item> Items = new();
     public Conveyor Conveyor;
     public ConveyorTile NextConveyorTile;
     public Coordinate Location => new() { X = Tile.X, Y = Tile.Y };
+
 
     public void Setup()
     {
@@ -37,6 +51,8 @@ public class ConveyorTile
         public static Coordinate operator -(Coordinate l, Coordinate r) => new() { X = l.X - r.X, Y = l.Y - r.Y };
         public static implicit operator Coordinate((int X, int Y) tuple) => new(tuple.X, tuple.Y);
         public override string ToString() => $"({X},{Y})";
+        public static bool operator ==(Coordinate l, Coordinate r) => l.X == r.X && l.Y == r.Y;
+        public static bool operator !=(Coordinate l, Coordinate r) => !(l.X == r.X && l.Y == r.Y);
     }
 
 }
