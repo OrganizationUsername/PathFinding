@@ -63,7 +63,7 @@ public class MainWindowViewModel : ObservableObject
     public ClickMode ClickMode { get => _clickMode; set { SetProperty(ref _clickMode, value); SelectedStringMode = _clickMode.ToString(); } }
     public RelayCommand ResetCommand { get; set; }
     public AsyncRelayCommand<bool> ChangeDiagonalCommand { get; }
-    public List<ConveyorTile.Coordinate> ListOfDirections = new() { (1, 0), (0, 1), (-1, 0), (0, -1) };
+    public List<Coordinate> ListOfDirections = new() { (1, 0), (0, 1), (-1, 0), (0, -1) };
 
 
     public MainWindowViewModel(IStatePersistence statePersistence)
@@ -171,7 +171,6 @@ public class MainWindowViewModel : ObservableObject
             return;
         }
 
-
         //If any conveyorTile would land on the highlighted one, then make add this conveyorTile to that conveyor.
         if (hoveredTile.InboundConveyorTiles.Any(inboundConveyorTile => inboundConveyorTile.Tile != ct.TargetTile))
         {
@@ -188,8 +187,9 @@ public class MainWindowViewModel : ObservableObject
             return;
         }
 
-        //If the conveyor, would land on another tile
-        if (targetedTile?.ConveyorTile is not null && targetedTile?.ConveyorTile.TargetTile != hoveredTile)
+        //If the conveyor, would land on another tile 
+        if (targetedTile?.ConveyorTile is not null &&
+            (targetedTile.ConveyorTile.Tile.InboundConveyorTiles.All(x => x == ct) || targetedTile.ConveyorTile.Conveyor.ConveyorTiles.Count == 1) && targetedTile?.ConveyorTile.TargetTile != hoveredTile)
         {
             //ToDo: I also need to cascade changes here.
             ct.Conveyor = targetedTile.ConveyorTile.Conveyor;

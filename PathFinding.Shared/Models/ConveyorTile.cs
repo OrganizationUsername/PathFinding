@@ -1,7 +1,4 @@
-﻿using System.Reflection.Metadata.Ecma335;
-using Microsoft.VisualBasic.CompilerServices;
-
-namespace PathFinding.Shared.Models;
+﻿namespace PathFinding.Shared.Models;
 
 public class ConveyorTile
 {
@@ -17,10 +14,12 @@ public class ConveyorTile
     {
         get
         {
+            var xMax = Tiles.GetLength(0);
+            var yMax = Tiles.GetLength(1);
             var tempX = Tile.X - Direction.X;
             var tempY = Tile.Y - Direction.Y;
-            if (tempX < 0 && tempX >= Tiles.GetLength(0)) { return null; }
-            if (tempY < 0 && tempY >= Tiles.GetLength(1)) { return null; }
+            if (tempX < 0 || tempX >= xMax) { return null; }
+            if (tempY < 0 || tempY >= yMax) { return null; }
             return Tiles[tempX, tempY];
         }
     }
@@ -40,20 +39,4 @@ public class ConveyorTile
         if (Direction.Y < 0) conveyorDirection = (MaxCellNumber - 1, -1);
         Lane = conveyorDirection;
     }
-
-    public struct Coordinate
-    {
-        public int X;
-        public int Y;
-
-        public Coordinate(int x, int y) { X = x; Y = y; }
-        public static Coordinate operator +(Coordinate l, Coordinate r) => new() { X = l.X + r.X, Y = l.Y + r.Y };
-        public static Coordinate operator -(Coordinate l, Coordinate r) => new() { X = l.X - r.X, Y = l.Y - r.Y };
-        public static implicit operator Coordinate((int X, int Y) tuple) => new(tuple.X, tuple.Y);
-        public override string ToString() => $"({X},{Y})";
-        public static bool operator ==(Coordinate l, Coordinate r) => l.X == r.X && l.Y == r.Y;
-        public static bool operator !=(Coordinate l, Coordinate r) => !(l.X == r.X && l.Y == r.Y);
-    }
-
 }
-
