@@ -151,14 +151,12 @@ public class MainWindowViewModel : ObservableObject
 
         if (hoveredTile.InboundConveyorTiles.Any(inboundConveyorTile => inboundConveyorTile.Tile != ct.TargetTile) && targetedTile?.ConveyorTile is not null)
         {
-            foreach (var x in hoveredTile.InboundConveyorTiles.Where(inboundConveyorTile => inboundConveyorTile.Tile != ct.Tile))
-            {
-                x.NextConveyorTile = ct;
-            }
-            var tailConveyorTile = hoveredTile.InboundConveyorTiles.FirstOrDefault(inboundConveyorTile => inboundConveyorTile.Tile != ct.Tile); //indeterministic
+            foreach (var x in hoveredTile.InboundConveyorTiles.Where(inboundConveyorTile => inboundConveyorTile.Tile != ct.Tile)) { x.NextConveyorTile = ct; }
+            var tailConveyorTile = hoveredTile.InboundConveyorTiles.First(inboundConveyorTile => inboundConveyorTile.Tile != ct.Tile); //indeterministic
             hoveredTile.ConveyorTile = ct;
             ct.Conveyor = tailConveyorTile.Conveyor;
             tailConveyorTile.Conveyor.ConveyorTiles.Add(ct);
+            ct.NextConveyorTile = ct.TargetTile.ConveyorTile;
             targetedTile?.InboundConveyorTiles.Add(ct);
             var otherConveyor = targetedTile.ConveyorTile.Conveyor;
             foreach (var tile in otherConveyor.ConveyorTiles)
@@ -281,7 +279,7 @@ public class MainWindowViewModel : ObservableObject
         if (tile == EntitiesToHighlight.FirstOrDefault()) return;
         var conveyorsTiles = (tile.ConveyorTile is null ? "" : $"{Environment.NewLine}Conveyor: {string.Join(", ", tile.ConveyorTile.Conveyor.ConveyorTiles.Select(t => $"({t.Tile.X},{t.Tile.Y})"))}");
         var landingTiles = tile.InboundConveyorTiles.Any() ? $"{Environment.NewLine}Incoming: {string.Join(", ", tile.InboundConveyorTiles.Select(t => $"({t.Tile.X},{t.Tile.Y})"))}" : "";
-        var nextConveyor = tile.ConveyorTile?.NextConveyorTile is not null ? $"{Environment.NewLine}Next: ({tile.ConveyorTile.NextConveyorTile.Location.X},{tile.ConveyorTile.NextConveyorTile.Location.Y})" : "";
+        var nextConveyor = tile.ConveyorTile?.NextConveyorTile is not null ? $"{Environment.NewLine}Next ct: ({tile.ConveyorTile.NextConveyorTile.Location.X},{tile.ConveyorTile.NextConveyorTile.Location.Y})" : "";
         HoveredEntityDescription = $"{tile.X},{tile.Y}{conveyorsTiles}{landingTiles}{nextConveyor}";
         EntitiesToHighlight.Clear();
         EntitiesToHighlight.Add(tile);
@@ -359,7 +357,7 @@ public class MainWindowViewModel : ObservableObject
     public void TryRotateConveyor(Point? point)
     {
         if (!point.HasValue || GetTileAtLocation(point) is not { ConveyorTile: { } ct }) return;
-
+        //ToDo: Need to check when it was --><--, but now it is not, so it can join a conveyor, if it wasn't already a part of it.
         var nextDirection = ListOfDirections[(ListOfDirections.IndexOf((ct.Direction.X, ct.Direction.Y)) + 1) % ListOfDirections.Count];
         var calledNext = ct.Location - nextDirection;
 
@@ -376,7 +374,10 @@ public class MainWindowViewModel : ObservableObject
 
         Conveyors.Add(newConveyor);
         Trace.WriteLine($"Next target = ({calledNext.X},{calledNext.Y}).");
+        ct.NextConveyorTile?.Tile.InboundConveyorTiles.Remove(ct);
         ct.NextConveyorTile = null;
+        Trace.WriteLine($"{ct.Location}'s nextTile changed to {ct.NextConveyorTile?.Location ?? (-1, -1)}");
+
 
         //ToDo: All of this logic is really wonky. 
         var current = ct.Location - ct.Direction;
@@ -390,10 +391,12 @@ public class MainWindowViewModel : ObservableObject
         if (next.X >= 0 && next.X < TileWidth && next.Y >= 0 && next.Y < TileHeight)
         {
             var upcomingTargetTile = State.TileGrid[next.X, next.Y];
+            //var upcomingTargetTile = State.TileGrid[next.X, next.Y];
             //(upcomingTargetTile.ConveyorTile.NextConveyorTile != ct) Ensures --><-- is prevented
-            if (upcomingTargetTile.HasNextConveyorTile && upcomingTargetTile.ConveyorTile.NextConveyorTile != ct)
+            if (upcomingTargetTile.ConveyorTile?.NextConveyorTile != ct)
             {
                 ct.NextConveyorTile = upcomingTargetTile.ConveyorTile;
+                Trace.WriteLine($"{ct.Location}'s nextTile changed to {ct.NextConveyorTile?.Location ?? (-1, -1)}");
             }
 
             if (upcomingTargetTile.InboundConveyorTiles.Count == 0 && upcomingTargetTile.ConveyorTile is not null)
