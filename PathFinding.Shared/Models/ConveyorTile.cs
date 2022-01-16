@@ -24,6 +24,16 @@ public class ConveyorTile
         }
     }
 
+    public Tile GetTileAtCoordinate(Coordinate c)
+    {
+        var next = Location - c;
+        if (next.X >= 0 && next.X < Tiles.GetLength(0) && next.Y >= 0 && next.Y < Tiles.GetLength(1))
+        {
+            return Tiles[next.X, next.Y];
+        }
+        return null;
+    }
+
     public List<Item> Items = new();
     public Conveyor Conveyor;
     public ConveyorTile NextConveyorTile;

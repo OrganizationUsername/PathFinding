@@ -11,6 +11,7 @@ public class Item
     public int Y;
     public (int X, int Y) Inertia;
     public ConveyorTile ConveyorTile;
+    public Conveyor PreviousConveyor;
     public bool Left;
 
     public void DeleteItem()
@@ -27,10 +28,29 @@ public class Item
         var projectedX = X - Inertia.X;
         var projectedY = Y - Inertia.Y;
 
-        if (projectedX < 0) { return (MaxCellNumber - 1, projectedY, ConveyorTile.NextConveyorTile); }
-        if (projectedX > MaxCellNumber) { return (0, projectedY, ConveyorTile.NextConveyorTile); }
-        if (projectedY < 0) { return (projectedX, MaxCellNumber - 1, ConveyorTile.NextConveyorTile); }
-        if (projectedY > MaxCellNumber) { return (projectedX, 0, ConveyorTile.NextConveyorTile); }
+        if (projectedX < 0)
+        {
+            if (ConveyorTile.NextConveyorTile is null) { return (X, Y, ConveyorTile); }
+            return (MaxCellNumber - 1, projectedY, ConveyorTile.NextConveyorTile);
+        }
+
+        if (projectedX > MaxCellNumber)
+        {
+            if (ConveyorTile.NextConveyorTile is null) { return (X, Y, ConveyorTile); }
+            return (0, projectedY, ConveyorTile.NextConveyorTile);
+        }
+
+        if (projectedY < 0)
+        {
+            if (ConveyorTile.NextConveyorTile is null) { return (X, Y, ConveyorTile); }
+            return (projectedX, MaxCellNumber - 1, ConveyorTile.NextConveyorTile);
+        }
+
+        if (projectedY > MaxCellNumber)
+        {
+            if (ConveyorTile.NextConveyorTile is null) { return (X, Y, ConveyorTile); }
+            return (projectedX, 0, ConveyorTile.NextConveyorTile);
+        }
 
         return (projectedX, projectedY, nextConveyorTile);
     }
