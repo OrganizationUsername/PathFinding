@@ -55,7 +55,7 @@ public class MainWindowViewModel : ObservableObject
     public List<Item> Items { get; set; } = new();
     public int ItemsCount => Items.Count;
     private int _tickCounter;
-    public readonly int MaxCellNumber = 2; //1 or 2
+    public readonly int MaxCellNumber = 1; //1 or 2
     public int MaxClickMode = Enum.GetValues(typeof(ClickMode)).Cast<int>().Max();
     private string _selectedStringMode = Enum.GetNames(typeof(ClickMode)).First();
     private ClickMode _clickMode = ClickMode.Player;
@@ -652,6 +652,7 @@ public class MainWindowViewModel : ObservableObject
                 item.ConveyorTile = nextTile;
             }
 
+            //In situations where a straight run of conveyors happens, it will maintain the same side. 
             if (item.ConveyorTile.Tile.InboundConveyorTiles.Count > 1)
             {
                 item.Left = item.X == item.ConveyorTile.Lane.X || item.Y == item.ConveyorTile.Lane.Y;

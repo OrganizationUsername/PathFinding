@@ -12,6 +12,9 @@ public class Item
     public (int X, int Y) Inertia;
     public ConveyorTile ConveyorTile;
     public bool Left;
+    /// <summary>
+    /// Used for coloring.
+    /// </summary>
     public bool OriginalLeft;
 
     public void DeleteItem()
