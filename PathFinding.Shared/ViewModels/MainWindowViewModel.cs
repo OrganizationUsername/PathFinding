@@ -33,6 +33,7 @@ public class MainWindowViewModel : ObservableObject
     public int PixelWidth { get; set; }
     public int PixelHeight { get; set; }
     public bool LeftButtonClick { get; set; }
+    public bool SpawnItems { get; set; }
     public string TileString { get => _tileString; set => SetProperty(ref _tileString, value); }
     public int TileWidth { get; set; }
     public int TileHeight { get; set; }
@@ -54,7 +55,7 @@ public class MainWindowViewModel : ObservableObject
     public List<Item> Items { get; set; } = new();
     public int ItemsCount => Items.Count;
     private int _tickCounter;
-    public readonly int MaxCellNumber = 2;
+    public readonly int MaxCellNumber = 2; //1 or 2
     public int MaxClickMode = Enum.GetValues(typeof(ClickMode)).Cast<int>().Max();
     private string _selectedStringMode = Enum.GetNames(typeof(ClickMode)).First();
     private ClickMode _clickMode = ClickMode.Player;
@@ -64,7 +65,6 @@ public class MainWindowViewModel : ObservableObject
     public RelayCommand ResetCommand { get; set; }
     public AsyncRelayCommand<bool> ChangeDiagonalCommand { get; }
     public List<Coordinate> ListOfDirections = new() { (1, 0), (0, 1), (-1, 0), (0, -1) };
-
 
     public MainWindowViewModel(IStatePersistence statePersistence)
     {
@@ -103,7 +103,10 @@ public class MainWindowViewModel : ObservableObject
         if (!Paused)
         {
             //TickConveyor();
-            //RandomlyAddItem();
+            if (SpawnItems)
+            {
+                RandomlyAddItem();
+            }
             _tickCounter++;
             if (_tickCounter >= 5)
             {
@@ -363,7 +366,6 @@ public class MainWindowViewModel : ObservableObject
 
         var hoveredCtNextConveyorTile = ct.NextConveyorTile;
         var listOfRemovableCts = GetAllDownstreamConveyorTiles(hoveredCtNextConveyorTile);
-
         listOfRemovableCts.TraceCount(nameof(listOfRemovableCts));
 
         var newConveyor = new Conveyor();
@@ -377,7 +379,6 @@ public class MainWindowViewModel : ObservableObject
         ct.NextConveyorTile?.Tile.InboundConveyorTiles.Remove(ct);
         ct.NextConveyorTile = null;
         Trace.WriteLine($"{ct.Location}'s nextTile changed to {ct.NextConveyorTile?.Location ?? (-1, -1)}");
-
 
         //ToDo: All of this logic is really wonky. 
         var current = ct.Location - ct.Direction;
@@ -608,12 +609,13 @@ public class MainWindowViewModel : ObservableObject
 
     public void RandomlyAddItem()
     {
-        if (!Conveyors.Any() || Items.Count > 10_000 || _rand.NextDouble() > 0.991) { return; }
+        if (!Conveyors.Any() || Items.Count > 10_000 || _rand.NextDouble() > 0.9) { return; }
 
         var conveyorIndex = _rand.Next(0, Conveyors.Count);
         var conveyor = Conveyors[conveyorIndex];
         if (!conveyor.ConveyorTiles.Any()) return;
-        var conveyorTile = conveyor.ConveyorTiles.First();
+        var conveyorTile = conveyor.ConveyorTiles.FirstOrDefault(x => !x.Tile.InboundConveyorTiles.Any());
+        if (conveyorTile is null) return;
         if (conveyorTile.Items.Any() || conveyorTile.NextConveyorTile is null) return;
         var x = _rand.NextDouble() > 0.5 ? 0 : MaxCellNumber - 1;
         var y = _rand.NextDouble() > 0.5 ? 0 : MaxCellNumber - 1;

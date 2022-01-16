@@ -36,6 +36,7 @@
                         <TextBlock Text="Show Numbers"/>
                         <CheckBox IsChecked="{Binding ShowNumbers}"/>
                     </StackPanel>
+                   
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Top">
                         <TextBox Text="{Binding TileString}" AcceptsReturn="True" Width="30" Height="18"/>
                         <Button Content="Push to load" Click="LoadMapString"/>
@@ -61,6 +62,10 @@
                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Bottom">
                         <TextBlock Text="Item count: "/>
                         <TextBlock Text="{Binding ItemsCount}" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Bottom">
+                        <TextBlock Text="Spawn Items"/>
+                        <CheckBox IsChecked="{Binding SpawnItems}"/>
                     </StackPanel>
                 </DockPanel>
             </TabItem>

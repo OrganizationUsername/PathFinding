@@ -104,15 +104,14 @@ public partial class MainWindow
         DrawConveyors();
 
         var partialTile = TileSize / Math.Max(1, Vm.MaxCellNumber);
+        var offset = Vm.MaxCellNumber == 1 ? TileSize / 4 : 0;
         foreach (var item in Vm.Items)
         {
             var tile = item.ConveyorTile.Tile;
-            if (tile.X > minX && tile.X <= maxX && tile.Y > minY && tile.Y <= maxY)
-            {
-                var leftPixel = tile.X * TileSize + partialTile * item.X;
-                var topPixel = tile.Y * TileSize + partialTile * item.Y;
-                Wb.FillRectangle(leftPixel - LeftX, topPixel - TopY, leftPixel + partialTile - LeftX, topPixel + partialTile - TopY, item.Left ? Colors.SaddleBrown : Colors.DeepPink);
-            }
+            if (tile.X <= minX || tile.X > maxX || tile.Y <= minY || tile.Y > maxY) /*Item outside of render window*/ continue;
+            var leftPixel = tile.X * TileSize + partialTile * item.X;
+            var topPixel = tile.Y * TileSize + partialTile * item.Y;
+            Wb.FillRectangle(leftPixel - LeftX + offset, topPixel - TopY + offset, leftPixel + partialTile - LeftX - offset, topPixel + partialTile - TopY - offset, item.Left ? Colors.SaddleBrown : Colors.DeepPink);
         }
 
         //if (_ran.NextDouble() < 0.05)
