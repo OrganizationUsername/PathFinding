@@ -11,8 +11,8 @@ public class Item
     public int Y;
     public (int X, int Y) Inertia;
     public ConveyorTile ConveyorTile;
-    public Conveyor PreviousConveyor;
     public bool Left;
+    public bool OriginalLeft;
 
     public void DeleteItem()
     {

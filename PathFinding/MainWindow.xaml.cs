@@ -111,7 +111,7 @@ public partial class MainWindow
             if (tile.X <= minX || tile.X > maxX || tile.Y <= minY || tile.Y > maxY) /*Item outside of render window*/ continue;
             var leftPixel = tile.X * TileSize + partialTile * item.X;
             var topPixel = tile.Y * TileSize + partialTile * item.Y;
-            Wb.FillRectangle(leftPixel - LeftX + offset, topPixel - TopY + offset, leftPixel + partialTile - LeftX - offset, topPixel + partialTile - TopY - offset, item.Left ? Colors.SaddleBrown : Colors.DeepPink);
+            Wb.FillRectangle(leftPixel - LeftX + offset, topPixel - TopY + offset, leftPixel + partialTile - LeftX - offset, topPixel + partialTile - TopY - offset, item.OriginalLeft ? Colors.SaddleBrown : Colors.DeepPink);
         }
 
         //if (_ran.NextDouble() < 0.05)

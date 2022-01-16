@@ -617,7 +617,8 @@ public class MainWindowViewModel : ObservableObject
             Y = y,
             ConveyorTile = conveyorTile,
             Inertia = (conveyorTile.Direction.X, conveyorTile.Direction.Y),
-            Left = x == conveyorTile.Lane.X || y == conveyorTile.Lane.Y
+            Left = x == conveyorTile.Lane.X || y == conveyorTile.Lane.Y,
+            OriginalLeft = x == conveyorTile.Lane.X || y == conveyorTile.Lane.Y
         };
         conveyorTile.Items.Add(item);
         conveyor.Items.Add(item);
@@ -627,11 +628,8 @@ public class MainWindowViewModel : ObservableObject
 
     public void Movement()
     {
-        //ToDo: Think about how this will be performed without GUI
         //ToDo: Actually I need to go through items according to who is furthest down the line so I can account for collisions more effectively.
         //Maybe it would be the segment * 10 + (_maxCellNumber * the hoveredTile direction (if x=3 and direction = (1,3), then it's the first that would be checked.). I'd look at highest first.
-        //ToDo: What if I kept the left and right hand sides separate? Just have to define left/right side of each conveyorTile. If you go from one conveyor to another, left/right isn't respected.
-        //ToDo: There's some issue with interlacing conveyors.
         TickConveyor();
         //return;
         for (var index = 0; index < Items.Count; index++)
@@ -654,11 +652,9 @@ public class MainWindowViewModel : ObservableObject
                 item.ConveyorTile = nextTile;
             }
 
-            if (item.ConveyorTile.Conveyor != item.PreviousConveyor || item.ConveyorTile.Tile.InboundConveyorTiles.Count > 1)
+            if (item.ConveyorTile.Tile.InboundConveyorTiles.Count > 1)
             {
-                //put it on the side it should now be on.
                 item.Left = item.X == item.ConveyorTile.Lane.X || item.Y == item.ConveyorTile.Lane.Y;
-                item.PreviousConveyor = item.ConveyorTile.Conveyor;
             }
 
         }
