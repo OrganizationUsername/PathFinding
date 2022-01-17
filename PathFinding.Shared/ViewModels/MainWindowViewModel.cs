@@ -55,7 +55,7 @@ public class MainWindowViewModel : ObservableObject
     public List<Item> Items { get; set; } = new();
     public int ItemsCount => Items.Count;
     private int _tickCounter;
-    public readonly int MaxCellNumber = 1; //1 or 2
+    public readonly int MaxCellNumber = 2; //1 or 2
     public int MaxClickMode = Enum.GetValues(typeof(ClickMode)).Cast<int>().Max();
     private string _selectedStringMode = Enum.GetNames(typeof(ClickMode)).First();
     private ClickMode _clickMode = ClickMode.Player;
@@ -81,6 +81,7 @@ public class MainWindowViewModel : ObservableObject
         TileSize = tileSize;
         State = new(TileWidth, TileHeight, tileSize, Sp);
 
+        ConveyorTile.MainWindowViewModel = this;
         ConveyorTile.Tiles = State.TileGrid;
         ConveyorTile.MaxCellNumber = MaxCellNumber;
         Item.MainWindowViewModel = this;
@@ -205,7 +206,7 @@ public class MainWindowViewModel : ObservableObject
             return;
         }
 
-        var c = new Conveyor();
+        var c = new Conveyor() { Id = Conveyors.Any() ? Conveyors.Max(x => x.Id) + 1 : 0 };
         c.ConveyorTiles.Add(ct);
         ct.Conveyor = c;
         ct.NextConveyorTile = targetedTile?.ConveyorTile;
@@ -229,7 +230,7 @@ public class MainWindowViewModel : ObservableObject
                 await HandleRightClickPlayerMode(tile);
                 break;
             case ClickMode.Conveyor:
-                //await HandleRightClickAddConveyorNode(tile);
+                await HandleRightClickMakeConveyorSorter(tile);
                 break;
             case ClickMode.Item:
                 break;
@@ -283,10 +284,11 @@ public class MainWindowViewModel : ObservableObject
         var tile = GetTileAtLocation(point);
         if (tile is null) return;
         if (tile == EntitiesToHighlight.FirstOrDefault()) return;
+        var conveyorInfo = tile.ConveyorTile is null ? "" : $"{Environment.NewLine}Conveyor Id= {tile.ConveyorTile.Conveyor.Id}";
         var conveyorsTiles = (tile.ConveyorTile is null ? "" : $"{Environment.NewLine}Conveyor: {string.Join(", ", tile.ConveyorTile.Conveyor.ConveyorTiles.Select(t => $"({t.Tile.X},{t.Tile.Y})"))}");
         var landingTiles = tile.InboundConveyorTiles.Any() ? $"{Environment.NewLine}Incoming: {string.Join(", ", tile.InboundConveyorTiles.Select(t => $"({t.Tile.X},{t.Tile.Y})"))}" : "";
         var nextConveyor = tile.ConveyorTile?.NextConveyorTile is not null ? $"{Environment.NewLine}Next ct: ({tile.ConveyorTile.NextConveyorTile.Location.X},{tile.ConveyorTile.NextConveyorTile.Location.Y})" : "";
-        HoveredEntityDescription = $"{tile.X},{tile.Y}{conveyorsTiles}{landingTiles}{nextConveyor}";
+        HoveredEntityDescription = $"{tile.X},{tile.Y}{conveyorInfo}{conveyorsTiles}{landingTiles}{nextConveyor}";
         EntitiesToHighlight.Clear();
         EntitiesToHighlight.Add(tile);
     }
@@ -370,8 +372,7 @@ public class MainWindowViewModel : ObservableObject
         var hoveredCtNextConveyorTile = ct.NextConveyorTile;
         var listOfRemovableCts = GetAllDownstreamConveyorTiles(hoveredCtNextConveyorTile);
         listOfRemovableCts.TraceCount(nameof(listOfRemovableCts));
-
-        var newConveyor = new Conveyor();
+        var newConveyor = new Conveyor() { Id = Conveyors.Any() ? Conveyors.Max(x => x.Id) + 1 : 0 };
         var temporaryCollection = ct.Conveyor.ConveyorTiles.Where(cc => !listOfRemovableCts.Contains(cc)).ToList();
         temporaryCollection.TraceCount("conveyorTiles to be removed");
 
@@ -475,77 +476,11 @@ public class MainWindowViewModel : ObservableObject
         return State.TileGrid[xThing, yThing];
     }
 
-    private async Task HandleRightClickAddConveyorNode(Tile tile)
+    private async Task HandleRightClickMakeConveyorSorter(Tile tile)
     {
-        //ToDo: Need to make placing conveyors better. 
-        //ToDo: Here, I should make sure that it is either IsPassable or it lands on another conveyor.
-        if (SelectedConveyorTile is null && (tile.IsPassable || tile.TileRole == TileRole.Conveyor))
-        {
-            SelectedConveyorTile = tile;
-            return;
-        }
+        if (tile.ConveyorTile is null) return;
+        tile.ConveyorTile.IsSorter = !tile.ConveyorTile.IsSorter;
 
-        if (!tile.IsPassable && tile.TileRole != TileRole.Conveyor) return;
-
-        //ToDo: This is messed up
-        var result = await PathFinding(SelectedConveyorTile, tile, false, DateTime.Now, true);
-        if (result.SolutionCells is null) return;
-        var conveyor = new Conveyor() { Id = Conveyors.Count + 1 };
-
-        SelectedConveyorTile = null;
-
-        //ToDo: I should go through this in reverse?
-        for (var index = 0; index < result.SolutionCells.Count; index++)
-        {
-            var cell = result.SolutionCells[index];
-            var nextCell = (index + 1 == result.SolutionCells.Count) ? null : result.SolutionCells[index + 1];
-            var tempTile = State.TileGrid[result.SolutionCells[index].X, result.SolutionCells[index].Y];
-            if (nextCell is null)
-            {
-                var ctx = new ConveyorTile() { Tile = tempTile, Direction = (0, 0) };
-                conveyor.ConveyorTiles.Add(new() { Tile = tempTile, Direction = (0, 0) });
-                tempTile.ConveyorTile = ctx;
-                continue;
-            }
-
-            var (x, y) = (cell.X - nextCell.X, cell.Y - nextCell.Y);
-            tempTile.IsPassable = false;
-            tempTile.TileRole = TileRole.Conveyor;
-            var ct = new ConveyorTile() { Tile = tempTile, Direction = (X: x, Y: y), Conveyor = conveyor };
-            tempTile.ConveyorTile = ct;
-            ct.Setup();
-            conveyor.ConveyorTiles.Add(ct);
-        }
-
-        for (var index = 0; index < conveyor.ConveyorTiles.Count; index++)
-        {
-            var conveyorTile = conveyor.ConveyorTiles[index];
-            var nextConveyorTile = (index + 1 == conveyor.ConveyorTiles.Count) ? null : conveyor.ConveyorTiles[index + 1];
-            conveyorTile.NextConveyorTile = nextConveyorTile;
-        }
-
-        Conveyors.Add(conveyor);
-
-        //ToDo: Separate this to another method. 
-        for (var index = 0; index < Conveyors.Count; index++)
-        {
-            var conv = Conveyors[index];
-            var masterTile = conv.ConveyorTiles[^1];
-            if (masterTile.NextConveyorTile is not null) continue;
-
-            for (var i = 0; i < Conveyors.Count; i++)
-            {
-                if (i == index) continue;
-                var convSlave = Conveyors[i];
-                var slaveTile = convSlave.ConveyorTiles.FirstOrDefault(t =>
-                    t.Tile.X == masterTile.Tile.X && t.Tile.Y == masterTile.Tile.Y);
-                if (slaveTile is null) continue;
-                masterTile.NextConveyorTile = slaveTile;
-                masterTile.Direction = slaveTile.Direction;
-            }
-        }
-
-        //foreach (var co in Conveyors) { /*I suck at debug with nulls.*/ Trace.WriteLine($"ConveyorID: {co.Id}" + string.Join("=> ", co.ConveyorTiles.Select(x => $"({x.Tile.X},{x.Tile.Y}) to ({x.NextConveyorTile?.Tile.X ?? -1},{x.NextConveyorTile?.Tile.Y ?? -1})"))); }
 
         await PlayerPathFinding();
     }
@@ -606,7 +541,7 @@ public class MainWindowViewModel : ObservableObject
         var conveyorIndex = _rand.Next(0, Conveyors.Count);
         var conveyor = Conveyors[conveyorIndex];
         if (!conveyor.ConveyorTiles.Any()) return;
-        var conveyorTile = conveyor.ConveyorTiles.FirstOrDefault(x => !x.Tile.InboundConveyorTiles.Any());
+        var conveyorTile = conveyor.ConveyorTiles.FirstOrDefault(x => !x.Tile.InboundConveyorTiles.Any() && !x.IsSorterTarget());
         if (conveyorTile is null) return;
         if (conveyorTile.Items.Any() || conveyorTile.NextConveyorTile is null) return;
         var x = _rand.NextDouble() > 0.5 ? 0 : MaxCellNumber - 1;
@@ -636,7 +571,15 @@ public class MainWindowViewModel : ObservableObject
         {
             var item = Items[index];
 
-            var (nextX, nextY, nextTile) = item.GetNextLocation();
+            int nextX;
+            int nextY;
+            ConveyorTile nextTile;
+            if (item.ConveyorTile.IsSorter)
+            {
+                item.GetSorterLocation();
+            }
+
+            (nextX, nextY, nextTile) = item.GetNextLocation();
 
             if (nextTile is null || nextTile.Direction.X + nextTile.Direction.Y == 0) { item.DeleteItem(); continue; }
 

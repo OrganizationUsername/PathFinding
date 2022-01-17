@@ -142,8 +142,8 @@ public partial class MainWindow
             {
                 var cell = conveyor.ConveyorTiles[index].Tile;
                 //Wb.FillRectangle(cell.X * TileSize + 1 - LeftX, cell.Y * TileSize + 1 - TopY, cell.X * TileSize + TileSize - 1 - LeftX, cell.Y * TileSize + TileSize - 1 - TopY, Colors.Black);
-
-                var (x, y) = conveyor.ConveyorTiles[index].Direction;
+                var ct = conveyor.ConveyorTiles[index];
+                var (x, y) = ct.Direction;
                 if (x == 0 && y == 0)
                 {
                     /*Wb.FillRectangle(cell.X * TileSize + 1 - LeftX, cell.Y * TileSize + 1 - TopY, cell.X * TileSize + TileSize - 1 - LeftX, cell.Y * TileSize + TileSize - 1 - TopY, Colors.Gray);*/
@@ -173,11 +173,6 @@ public partial class MainWindow
                     Wb.DrawLine(leftPosition + (x > 0 ? thing : length) / 2 + TileSize / 2, cell.Y * TileSize + 2 - TopY,
                         leftPosition + (x > 0 ? thing : length) / 2 + TileSize / 2, cell.Y * TileSize + TileSize - 2 - TopY,
                         Colors.Black);
-                    //Wb.FillTriangle(
-                    //    cell.X * TileSize + TileSize / 2 - LeftX, cell.Y * TileSize - TopY + 2,
-                    //    cell.X * TileSize + TileSize / 2 - LeftX, (cell.Y + 1) * TileSize - TopY - 1,
-                    //    -LeftX + ((x > 0) ? cell.X * TileSize + 1 : (cell.X + 1) * TileSize - 2),
-                    //    cell.Y * TileSize + TileSize / 2 - TopY, Colors.Black);
                     //ToDo: Add a little filled triangle to each line so it's obvious which way the conveyor is pointing when paused.
                     Wb.DrawLine(
                         cell.X * TileSize + TileSize / 2 - LeftX, cell.Y * TileSize - TopY + 2,
@@ -187,6 +182,11 @@ public partial class MainWindow
                         -LeftX + ((x > 0) ? cell.X * TileSize + 1 : (cell.X + 1) * TileSize - 2),
                         cell.Y * TileSize + TileSize / 2 - TopY,
                         cell.X * TileSize + TileSize / 2 - LeftX, (cell.Y + 1) * TileSize - TopY - 1, Colors.Black);
+                    if (ct.IsSorter)
+                    {
+                        Wb.DrawLine(leftPosition, cell.Y * TileSize - TopY + TileSize / 2,
+                            leftPosition + TileSize, cell.Y * TileSize - TopY + TileSize / 2, Colors.Black);
+                    }
                 }
                 else
                 {
@@ -208,11 +208,6 @@ public partial class MainWindow
                     Wb.DrawLine(leftPosition, cell.Y * TileSize - TopY + (y > 0 ? thing : length) / 2 + TileSize / 2,
                         leftPosition + TileSize, cell.Y * TileSize - TopY + (y > 0 ? thing : length) / 2 + TileSize / 2,
                         Colors.Black);
-                    //Wb.FillTriangle(
-                    //    cell.X * TileSize - LeftX + 2, cell.Y * TileSize + TileSize / 2 - TopY,
-                    //    (cell.X + 1) * TileSize - LeftX - 2, cell.Y * TileSize + TileSize / 2 - TopY,
-                    //    cell.X * TileSize + TileSize / 2 - LeftX,
-                    //    -TopY + (y > 0 ? cell.Y * TileSize + 1 : (cell.Y + 1) * TileSize) - 1, Colors.Black);
 
                     Wb.DrawLine(
                         (cell.X + 1) * TileSize - LeftX - 2, cell.Y * TileSize + TileSize / 2 - TopY,
@@ -223,6 +218,11 @@ public partial class MainWindow
                         cell.X * TileSize - LeftX + 2, cell.Y * TileSize + TileSize / 2 - TopY,
                         cell.X * TileSize + TileSize / 2 - LeftX,
                         -TopY + (y > 0 ? cell.Y * TileSize + 1 : (cell.Y + 1) * TileSize) - 1, Colors.Black);
+                    if (ct.IsSorter)
+                    {
+                        Wb.DrawLine(leftPosition + TileSize / 2, cell.Y * TileSize - TopY,
+                            leftPosition + TileSize / 2, cell.Y * TileSize + TileSize - 1 - TopY, Colors.Black);
+                    }
                 }
             }
         }

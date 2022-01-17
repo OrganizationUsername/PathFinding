@@ -1,7 +1,11 @@
-﻿namespace PathFinding.Shared.Models;
+﻿using System.Runtime.CompilerServices;
+using PathFinding.Shared.ViewModels;
+
+namespace PathFinding.Shared.Models;
 
 public class ConveyorTile
 {
+    public static MainWindowViewModel MainWindowViewModel;
     public static int MaxCellNumber;
     public static Tile[,] Tiles;
     public (int X, int Y) Direction;
@@ -10,6 +14,7 @@ public class ConveyorTile
     /// </summary>
     public (int X, int Y) Lane;
     public Tile Tile;
+    public bool IsSorter;
     public Tile TargetTile
     {
         get
@@ -32,6 +37,23 @@ public class ConveyorTile
             return Tiles[next.X, next.Y];
         }
         return null;
+    }
+
+    public bool IsSorterTarget()
+    {
+        var xMax = Tiles.GetLength(0);
+        var yMax = Tiles.GetLength(1);
+        foreach (var direction in MainWindowViewModel.ListOfDirections)
+        {
+            var possibleLocation = Location + direction;
+            if (possibleLocation.X < 0 || possibleLocation.X >= xMax) { continue; }
+            if (possibleLocation.Y < 0 || possibleLocation.Y >= yMax) { continue; }
+
+            var tempTile = Tiles[possibleLocation.X, possibleLocation.Y];
+            if (tempTile.ConveyorTile?.Conveyor == Conveyor) continue;
+            if (tempTile.ConveyorTile is { IsSorter: true }) { return true; }
+        }
+        return false;
     }
 
     public List<Item> Items = new();
