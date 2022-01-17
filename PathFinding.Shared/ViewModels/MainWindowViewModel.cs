@@ -55,7 +55,7 @@ public class MainWindowViewModel : ObservableObject
     public List<Item> Items { get; set; } = new();
     public int ItemsCount => Items.Count;
     private int _tickCounter;
-    public readonly int MaxCellNumber = 2; //1 or 2
+    public readonly int MaxCellNumber = 1; //1 or 2
     public int MaxClickMode = Enum.GetValues(typeof(ClickMode)).Cast<int>().Max();
     private string _selectedStringMode = Enum.GetNames(typeof(ClickMode)).First();
     private ClickMode _clickMode = ClickMode.Player;
@@ -150,6 +150,7 @@ public class MainWindowViewModel : ObservableObject
         var ct = new ConveyorTile() { Tile = hoveredTile, Direction = direction };
         ct.Setup();
         hoveredTile.TileRole = TileRole.Conveyor;
+        hoveredTile.IsPassable = false;
 
         var targetedTile = ct.TargetTile;
 
@@ -536,7 +537,7 @@ public class MainWindowViewModel : ObservableObject
 
     public void RandomlyAddItem()
     {
-        if (!Conveyors.Any() || Items.Count > 10_000 || _rand.NextDouble() > 0.9) { return; }
+        if (!Conveyors.Any() || Items.Count > 00_000 || _rand.NextDouble() > 0.9) { return; }
 
         var conveyorIndex = _rand.Next(0, Conveyors.Count);
         var conveyor = Conveyors[conveyorIndex];
@@ -571,15 +572,22 @@ public class MainWindowViewModel : ObservableObject
         {
             var item = Items[index];
 
-            int nextX;
-            int nextY;
-            ConveyorTile nextTile;
+            int nextX = -1;
+            int nextY = -1;
+            ConveyorTile nextTile = null;
+            
+            if (item.ConveyorTile.Location.X == 5 && item.ConveyorTile.Location.Y == 5) Debugger.Break();
+
             if (item.ConveyorTile.IsSorter)
             {
-                item.GetSorterLocation();
+
+                (nextX, nextY, nextTile) = item.GetSorterLocation();
             }
 
-            (nextX, nextY, nextTile) = item.GetNextLocation();
+            if (nextTile is null)
+            {
+                (nextX, nextY, nextTile) = item.GetNextLocation();
+            }
 
             if (nextTile is null || nextTile.Direction.X + nextTile.Direction.Y == 0) { item.DeleteItem(); continue; }
 

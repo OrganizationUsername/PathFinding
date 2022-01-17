@@ -23,7 +23,7 @@ public class Item
         ConveyorTile.Items.Remove(this);
     }
 
-    public void GetSorterLocation()
+    public (int projectedX, int projectedY, ConveyorTile x) GetSorterLocation()
     {
         foreach (var direction in MainWindowViewModel.ListOfDirections)
         {
@@ -31,18 +31,19 @@ public class Item
             if (testLocation.X > 0 && testLocation.X < MainWindowViewModel.TileWidth && testLocation.Y > 0 && testLocation.Y < MainWindowViewModel.TileHeight)
             {
                 var nextTile = MainWindowViewModel.State.TileGrid[testLocation.X, testLocation.Y];
-                if (nextTile.ConveyorTile is not null && nextTile.ConveyorTile?.Conveyor != ConveyorTile.Conveyor)
+                if (nextTile.ConveyorTile is not null && nextTile.ConveyorTile?.Conveyor != ConveyorTile.Conveyor && ConveyorTile.Location + direction == nextTile.ConveyorTile.Location)
                 {
                     //Then it's a possibility.
-                    var asdf = this.ConveyorTile.Location - nextTile.ConveyorTile.Location;
+                    var asdf = ConveyorTile.Location - nextTile.ConveyorTile.Location;
                     Inertia = asdf;
+
+                    return GetNextLocationAgnostic(X - asdf.X, Y - asdf.Y, ConveyorTile, nextTile.ConveyorTile);
 
                 }
             }
 
         }
-
-
+        return (-1, -1, null);
     }
 
     public (int projectedX, int projectedY, ConveyorTile x) GetNextLocation()
@@ -53,39 +54,36 @@ public class Item
         var projectedX = X - Inertia.X;
         var projectedY = Y - Inertia.Y;
 
-        var result = GetNextLocationAgnostic(projectedX, projectedY, ConveyorTile);
-        if (result.x is not null) return result;
-
-        return (projectedX, projectedY, nextConveyorTile);
+        return GetNextLocationAgnostic(projectedX, projectedY, ConveyorTile, null);
     }
 
-    public (int projectedX, int projectedY, ConveyorTile x) GetNextLocationAgnostic(int projectedX, int projectedY, ConveyorTile ct)
+    public (int projectedX, int projectedY, ConveyorTile x) GetNextLocationAgnostic(int projectedX, int projectedY, ConveyorTile ct, ConveyorTile alternate)
     {
         if (projectedX < 0)
         {
             if (ct.NextConveyorTile is null) { return (X, Y, ct); }
-            return (MaxCellNumber - 1, projectedY, ct.NextConveyorTile);
+            return (MaxCellNumber - 1, projectedY, alternate is not null && !alternate.Items.Any() ? alternate : ct.NextConveyorTile);
         }
 
-        if (projectedX > MaxCellNumber)
+        if (projectedX >= MaxCellNumber)
         {
             if (ct.NextConveyorTile is null) { return (X, Y, ct); }
-            return (0, projectedY, ct.NextConveyorTile);
+            return (0, projectedY, alternate is not null && !alternate.Items.Any() ? alternate : ct.NextConveyorTile);
         }
 
         if (projectedY < 0)
         {
             if (ct.NextConveyorTile is null) { return (X, Y, ct); }
-            return (projectedX, MaxCellNumber - 1, ct.NextConveyorTile);
+            return (projectedX, MaxCellNumber - 1, alternate is not null && !alternate.Items.Any() ? alternate : ct.NextConveyorTile);
         }
 
-        if (projectedY > MaxCellNumber)
+        if (projectedY >= MaxCellNumber)
         {
             if (ct.NextConveyorTile is null) { return (X, Y, ct); }
-            return (projectedX, 0, ct.NextConveyorTile);
+            return (projectedX, 0, alternate is not null && !alternate.Items.Any() ? alternate : ct.NextConveyorTile);
         }
 
-        return (-1, -1, null);
+        return (projectedX, projectedY, ct);
     }
 
 
