@@ -184,3 +184,97 @@ namespace PathFinding.Core
 
 
 }
+
+
+
+
+
+//void SimulateSetup(ref Cell[] cells, ref Cell[,] cellGrid, int xExtent, int yExtent)
+//{
+//    int id = 0;
+//    //So here's where I would have a collection of cells already.
+//    for (ushort i = 0; i < xExtent; i++)
+//    {
+//        for (ushort j = 0; j < yExtent; j++)
+//        {
+//            var tempCell = new Cell { Id = id, X = i, Y = j };
+//            //cells.Add(tempCell);
+//            cells[id] = tempCell;
+//            id++;
+//            cellGrid[i, j] = tempCell;
+//        }
+//    }
+//}
+
+//var startMemory = GC.GetAllocatedBytesForCurrentThread();
+
+//var xExtent = 425;
+//var yExtent = 425;
+////var cells = new List<Cell>(xExtent * yExtent); //1kb, 1740kb with 333x333
+//var cells = new Cell[(xExtent * yExtent)]; //1kb, 1740kb with 333x333
+//                                           //Cell * cells = stackalloc Cell[xExtent * yExtent]; //873k saved with 333x333 //Fails at 65535*2 and ~425x425
+//                                           //This isn't worth it since all of it will already be allocated in program.
+//var sourceX = 1;
+//var sourceY = 1;
+//var destinationX = xExtent / 2;
+//var destinationY = yExtent / 2;
+
+//unsafe { sizeof(Cell).Dump("Cell size"); }
+
+//Cell[,] cellGrid = new Cell[xExtent, yExtent];
+
+//SimulateSetup(ref cells, ref cellGrid, xExtent, yExtent);
+//Cell destinationCell = cellGrid[destinationX, destinationY];
+
+
+//((GC.GetAllocatedBytesForCurrentThread() - startMemory) / 1024 / 0001).Dump("kb in setup.");
+//startMemory = GC.GetAllocatedBytesForCurrentThread();
+
+//var pq = new SimplePriorityQueue<int>();
+//for (int i = 0; i < xExtent * yExtent; i++)
+//{
+//    var c = cells[i];
+//    var cost = (Math.Abs(c.X - destinationCell.X) + Math.Abs(c.Y - destinationCell.Y)) + (int.MaxValue * 0 / 16);
+//    pq.Enqueue(c.Id, cost);
+//    //c.Dump($"Cost: {cost}");
+//}
+//cells[pq.Dequeue()].Dump(); //Simulate being in the middle of something
+
+//var costThing = -1;
+//for (int i = 0; i < 9; i++)
+//{
+//    if (costThing < 0)
+//    {
+//        var dequeued = pq.Dequeue();
+//        var cell = cells[dequeued];
+//        var cost = (Math.Abs(cell.X - destinationCell.X) + Math.Abs(cell.Y - destinationCell.Y));
+//        if (costThing < 0) costThing = cost;
+//        cell.Dump($"Cell. Cost= {cost}. Id = {dequeued}");
+//    }
+//    else
+//    {
+//        var TempThing = pq.First();
+//        var tempCell = cells[TempThing];
+//        var TakeIt = costThing == (Math.Abs(tempCell.X - destinationCell.X) + Math.Abs(tempCell.Y - destinationCell.Y));
+//        if (TakeIt)
+//        {
+//            costThing = -1;
+//        }
+//    }
+//}
+
+//pq.First().Dump();
+
+//((GC.GetAllocatedBytesForCurrentThread() - startMemory) / 1024 / 0001).Dump("kb used for priority queue.");
+
+
+////Since this has to be stable, I can't have anything that represents mutable state.
+//public struct Cell
+//{
+//    public int Id;
+//    public ushort X; //int    => 3465
+//    public ushort Y; //ushort => 2599 for 333x333
+//                     //public bool Passable; //Save 867 without these for 333x333
+//                     //public sbyte ChunkId;
+//}
+
