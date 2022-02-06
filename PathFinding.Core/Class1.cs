@@ -27,7 +27,9 @@ namespace PathFinding.Core
             if (cellGrid is null) return (null, null, s.ElapsedMilliseconds, thisDate);
             //Trace.WriteLine($"Source at: {sourceCell.X},{sourceCell.Y}");
             //Trace.WriteLine($"Destination at: {destCell.X},{destCell.Y}");
-            var priorityQueue = new SimplePriorityQueue<Cell>();
+
+            FastPriorityQueue<Cell> priorityQueue = new FastPriorityQueue<Cell>(cellGrid.GetLength(0) * cellGrid.GetLength(1));
+            //var priorityQueue = new SimplePriorityQueue<Cell>();
             for (var x = 0; x < cellGrid.GetLength(0); x++)
             {
                 for (var y = 0; y < cellGrid.GetLength(1); y++)
@@ -67,7 +69,7 @@ namespace PathFinding.Core
             return (solutionIds, cellGrid, s.ElapsedMilliseconds, thisDate);
         }
 
-        public static int PathIteration(Cell[,] cellGrid, Cell destCell, IReadOnlyDictionary<(int, int), List<(int, int)>> targets, bool diagonal, SimplePriorityQueue<Cell> priorityQueue)
+        public static int PathIteration(Cell[,] cellGrid, Cell destCell, IReadOnlyDictionary<(int, int), List<(int, int)>> targets, bool diagonal, FastPriorityQueue<Cell> priorityQueue)
         {
             //var s = new Stopwatch();
             //s.Start();
@@ -144,7 +146,7 @@ namespace PathFinding.Core
             return results;
         }
 
-        public static int SetNeighbor(Cell sourceCell, Cell neighborCell, int cost, SimplePriorityQueue<Cell> priorityQueue)
+        public static int SetNeighbor(Cell sourceCell, Cell neighborCell, int cost, FastPriorityQueue<Cell> priorityQueue)
         {
             //var s = new Stopwatch();
             //s.Start();
@@ -159,7 +161,7 @@ namespace PathFinding.Core
         }
     }
 
-    public sealed class Cell
+    public sealed class Cell : FastPriorityQueueNode
     {
         public int Id;
         public int GScore;
