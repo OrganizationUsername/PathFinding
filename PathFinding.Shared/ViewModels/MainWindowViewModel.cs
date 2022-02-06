@@ -248,7 +248,7 @@ public class MainWindowViewModel : ObservableObject
             Items.Clear();
             TileWidth = tileWidth;
             TileHeight = tileHeight;
-            TileSize = Math.Max(Math.Min(PixelWidth / tileWidth, PixelHeight / tileHeight), 3);
+            TileSize = Math.Max(Math.Min(PixelWidth / tileWidth, PixelHeight / tileHeight), 10);
             State = new(TileWidth, TileHeight, TileSize, Sp);
             AnswerCells = null;
             PlayerDictionary.Clear();
@@ -300,14 +300,21 @@ public class MainWindowViewModel : ObservableObject
         Cell sourceCell = new() { Id = source.Id, HScore = Math.Abs(source.X - destination.X) + Math.Abs(source.Y - destination.Y), X = source.X, Y = source.Y, Passable = source.IsPassable };
 
         var cells = new Cell[State.X, State.Y];
-
+        Stopwatch sw = new Stopwatch();
+        sw.Start();
+        var beforeStarting = DateTime.Now.TimeOfDay;
+        Trace.WriteLine($"{beforeStarting}");
         (destCell, sourceCell) = GetStateCells(destination, source, destCell, cells, sourceCell);
+        Trace.WriteLine($"{sw.Elapsed.Milliseconds} ms to set up StateCells");
         if (forceWalkable) { destCell.Passable = true; sourceCell.Passable = true; }
 
         //Not really useful at the moment.
         //await Chunking(cells, requestDate);
         var solution = await Solver.SolveAsync(cells, sourceCell, destCell, null, requestDate, allowDiagonal);
         if (solution.SolutionCells is null || !solution.SolutionCells.Any()) return default;
+        Trace.WriteLine($"{sw.Elapsed.Milliseconds} ms to solve raw.");
+        Trace.WriteLine($"{DateTime.Now.TimeOfDay}");
+        Trace.WriteLine($"Time based on dateTime = {(DateTime.Now.TimeOfDay - beforeStarting).TotalMilliseconds} ms rawer.");
         Trace.WriteLine($"{solution.TimeToSolve}ms to solve ({sourceCell.X},{sourceCell.Y}) to ({destCell.X},{destCell.Y}).");
         return solution;
     }
@@ -352,14 +359,17 @@ public class MainWindowViewModel : ObservableObject
 
             if (solution.SolutionCells is null || !solution.SolutionCells.Any() || solution.thisDate != LastRequestedPathFind) continue;
 
-            Trace.WriteLine($"{solution.TimeToSolve}ms to solve ({source.X},{source.Y}) to ({source.X},{destination.Y}).");
+            Trace.WriteLine($"{solution.TimeToSolve}ms to solve ({source.X},{source.Y}) to ({destination.X},{destination.Y}).");
 
             foreach (var cell in solution.SolutionCells) { SolutionDictionary[key].Add((cell.X, cell.Y)); }
 
-            foreach (var cell in solution.AllCells) { notableCount = (cell.FCost > int.MaxValue / 3) ? notableCount + 1 : notableCount; }
+            //foreach (var cell in solution.AllCells) { notableCount = (cell.FCost < int.MaxValue / 3 || cell.Finished) ? notableCount + 1 : notableCount; }
 
-            //CellsScored = notableCount; //Wrong at the moment
-            //AnswerCells = solution.AllCells; //Wrong at the moment
+            var finishedCount = 0;
+            foreach (var cell in solution.AllCells) { finishedCount += (cell.Finished) ? 1 : 0; }
+            Trace.WriteLine($"Notable count: {notableCount}. Finished: {finishedCount}.");
+            CellsScored = notableCount; //Wrong at the moment
+            AnswerCells = solution.AllCells; //Wrong at the moment
         }
     }
 
@@ -575,7 +585,7 @@ public class MainWindowViewModel : ObservableObject
             int nextX = -1;
             int nextY = -1;
             ConveyorTile nextTile = null;
-            
+
             if (item.ConveyorTile.Location.X == 5 && item.ConveyorTile.Location.Y == 5) Debugger.Break();
 
             if (item.ConveyorTile.IsSorter)
