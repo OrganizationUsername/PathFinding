@@ -248,7 +248,7 @@ public class MainWindowViewModel : ObservableObject
             Items.Clear();
             TileWidth = tileWidth;
             TileHeight = tileHeight;
-            TileSize = Math.Max(Math.Min(PixelWidth / tileWidth, PixelHeight / tileHeight), 3);
+            TileSize = Math.Max(Math.Min(PixelWidth / tileWidth, PixelHeight / tileHeight), 5);
             State = new(TileWidth, TileHeight, TileSize, Sp);
             AnswerCells = null;
             PlayerDictionary.Clear();
@@ -306,7 +306,9 @@ public class MainWindowViewModel : ObservableObject
 
         //Not really useful at the moment.
         //await Chunking(cells, requestDate);
+        var x = DateTime.Now;
         var solution = await Solver.SolveAsync(cells, sourceCell, destCell, null, requestDate, allowDiagonal);
+        Trace.WriteLine((DateTime.Now - x).TotalMilliseconds);
         if (solution.SolutionCells is null || !solution.SolutionCells.Any()) return default;
         Trace.WriteLine($"{solution.TimeToSolve}ms to solve ({sourceCell.X},{sourceCell.Y}) to ({destCell.X},{destCell.Y}).");
         return solution;
