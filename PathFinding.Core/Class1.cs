@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Priority_Queue;
@@ -24,7 +25,8 @@ namespace PathFinding.Core
 
         public static (List<Cell> SolutionCells, Cell[,] AllCells, long TimeToSolve, DateTime thisDate) Solve(Cell[,] cellGrid, Cell sourceCell, Cell destCell, IReadOnlyDictionary<(int, int), List<(int, int)>> targets, DateTime thisDate, bool diagonal = false)
         {
-            var startMemory = GC.GetAllocatedBytesForCurrentThread();
+            //var startMemory = GC.GetAllocatedBytesForCurrentThread();
+
             var s = new Stopwatch();
             s.Start();
             if (cellGrid is null) return (null, null, s.ElapsedMilliseconds, thisDate);
@@ -41,7 +43,7 @@ namespace PathFinding.Core
                     }
                     else
                     {
-                        if (cellGrid[x, y] is null) continue;
+                        if (cellGrid[x, y].ChunkId == 0) continue;
                         priorityQueue.Enqueue(cellGrid[x, y], cellGrid[x, y].FCost);
                     }
                 }
@@ -53,18 +55,13 @@ namespace PathFinding.Core
             {
                 if (!priorityQueue.Any()) return (null, null, s.ElapsedMilliseconds, thisDate);
                 count++;
-                var changed = PathIteration(cellGrid, destCell, targets, diagonal, priorityQueue);
-                if (changed == 0) return (null, null, s.ElapsedMilliseconds, thisDate);
+                PathIteration(cellGrid, destCell, targets, diagonal, priorityQueue);
             }
             Trace.WriteLine($"Time for path solving: {s.Elapsed.Milliseconds} ms for {count} iterations.");
-            //Trace.WriteLine($"Time for path solving: {s.ElapsedMilliseconds}ms for {count} iterations");
-            //s.Restart();
             var solutionIds = GetSolutionCells(sourceCell, destCell, cellGrid);
             Trace.WriteLine($"Time to get solution cells: {s.Elapsed.Milliseconds} ms.");
             if (solutionIds is null || !solutionIds.Any()) return (null, null, s.ElapsedMilliseconds, thisDate);
-            //Trace.WriteLine($"Time for path solution extraction: {s.ElapsedMilliseconds}"); //10
-            //var endMemory = GC.GetAllocatedBytesForCurrentThread();
-            //Trace.WriteLine($"Allocated: {(endMemory - startMemory) / 1024} kb.");
+            Trace.WriteLine($"{DateTime.Now.TimeOfDay} from Class1.");
             return (solutionIds, cellGrid, s.Elapsed.Milliseconds, thisDate);
         }
 
@@ -74,6 +71,7 @@ namespace PathFinding.Core
             //s.Start();
             var changes = 0;
             var best = priorityQueue.Dequeue();
+            best.ChunkId = 0;
             if (best.FCost > int.MaxValue / 2) return 0;
 
             var neighbors = GetNeighborCells(best, cellGrid, destCell, targets, diagonal);
@@ -134,7 +132,7 @@ namespace PathFinding.Core
                     if (!diagonal && distance != 1) continue;
                     if (distance == 2)
                     {
-                        if (cellGrid[tempX, sourceCell.Y] is null || cellGrid[sourceCell.X, tempY] is null || cellGrid[tempX, tempY] is null || cellGrid[sourceCell.X, sourceCell.Y] is null) continue;
+                        if (cellGrid[tempX, sourceCell.Y].ChunkId == 0 || cellGrid[sourceCell.X, tempY].ChunkId == 0 || cellGrid[tempX, tempY].ChunkId == 0 || cellGrid[sourceCell.X, sourceCell.Y].ChunkId == 0) continue;
                         if (cellGrid[tempX, sourceCell.Y].Passable && cellGrid[sourceCell.X, tempY].Passable &&
                             (cellGrid[tempX, tempY].Passable || cellGrid[tempX, tempY].Id == destCell.Id))
                         {
@@ -142,7 +140,7 @@ namespace PathFinding.Core
                         }
                         continue;
                     }
-                    if (cellGrid[tempX, tempY] is null) continue;
+                    if (cellGrid[tempX, tempY].ChunkId == 0) continue;
                     if (cellGrid[tempX, tempY].Passable || cellGrid[tempX, tempY].Id == destCell.Id) { results.Add(cellGrid[tempX, tempY]); }
                 }
             }
@@ -159,13 +157,21 @@ namespace PathFinding.Core
             {
                 neighborCell.GScore = Math.Min(cost, neighborCell.GScore);
                 neighborCell.Predecessor = (sourceCell.X, sourceCell.Y);
-                priorityQueue.UpdatePriority(neighborCell, neighborCell.FCost);
+                if (priorityQueue.Contains(neighborCell))
+                {
+                    priorityQueue.UpdatePriority(neighborCell, neighborCell.FCost);
+                }
+                else
+                {
+                    neighborCell.ChunkId = 0;
+                }
+                
             }
             return 1;
         }
     }
 
-    public sealed class Cell
+    public struct Cell
     {
         public int Id;
         public int GScore;
@@ -177,7 +183,6 @@ namespace PathFinding.Core
         public bool Passable;
         public int ChunkId = -1;
         public (int X, int Y)? Predecessor;
-        public List<Cell> Destinations;
         public override string ToString() => $"{Id}: {X}, {Y}, Passable: {Passable}, F: {FCost}, G: {GScore}, H: {HScore}. Finished= {Finished}";
     }
 

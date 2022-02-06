@@ -65,7 +65,7 @@ public partial class MainWindow
     }
 
     [SuppressMessage("ReSharper.DPA", "DPA0002: Excessive memory allocations in SOH")]
-    private async void RenderTickAsync(object sender, EventArgs e)
+    private void RenderTickAsync(object sender, EventArgs e)
     {
         HandleKeyPress();
 
@@ -81,7 +81,7 @@ public partial class MainWindow
         _ticksPerSecond++;
         try
         {
-            await Vm.Tick(_point, _clicked);
+            Vm.Tick(_point, _clicked);
         }
         catch (Exception ee)
         {
@@ -100,8 +100,6 @@ public partial class MainWindow
 
         DrawTiles(minX, maxX, minY, maxY);
         DrawSolutionCells(minX, maxX, minY, maxY);
-
-        DrawConveyors();
 
         var partialTile = TileSize / Math.Max(1, Vm.MaxCellNumber);
         var offset = Vm.MaxCellNumber == 1 ? TileSize / 4 : 0;
@@ -130,102 +128,6 @@ public partial class MainWindow
 
         Wb.Unlock();
         //Trace.WriteLine($"Time to draw everything: {sw.ElapsedMilliseconds}"); //~1
-    }
-
-    private void DrawConveyors()
-    {
-        for (var i = 0; i < Vm.Conveyors.Count; i++)
-        {
-            var conveyor = Vm.Conveyors[i];
-            var color = _metroColors[i % _metroColors.Count];
-            for (var index = 0; index < conveyor.ConveyorTiles.Count; index++)
-            {
-                var cell = conveyor.ConveyorTiles[index].Tile;
-                //Wb.FillRectangle(cell.X * TileSize + 1 - LeftX, cell.Y * TileSize + 1 - TopY, cell.X * TileSize + TileSize - 1 - LeftX, cell.Y * TileSize + TileSize - 1 - TopY, Colors.Black);
-                var ct = conveyor.ConveyorTiles[index];
-                var (x, y) = ct.Direction;
-                if (x == 0 && y == 0)
-                {
-                    /*Wb.FillRectangle(cell.X * TileSize + 1 - LeftX, cell.Y * TileSize + 1 - TopY, cell.X * TileSize + TileSize - 1 - LeftX, cell.Y * TileSize + TileSize - 1 - TopY, Colors.Gray);*/
-                    continue;
-                }
-
-                var leftPosition = cell.X * TileSize - LeftX;
-                var length = TileSize * conveyor.Tick / 8;
-                int thing = TileSize - length;
-                if (x != 0)
-                {
-                    Wb.FillRectangle(
-                        leftPosition + 1, cell.Y * TileSize + 1 - TopY,
-                        leftPosition + TileSize - 2, cell.Y * TileSize + TileSize - 2 - TopY,
-                        color);
-                    Wb.DrawLine(
-                        leftPosition + 1, cell.Y * TileSize + 1 - TopY,
-                        leftPosition + TileSize - 1, cell.Y * TileSize + 1 - TopY,
-                        Colors.Gray);
-                    Wb.DrawLine(
-                        leftPosition + 1, cell.Y * TileSize + TileSize - 1 - TopY,
-                        leftPosition + TileSize - 1, cell.Y * TileSize + TileSize - 1 - TopY,
-                        Colors.Gray);
-
-                    Wb.DrawLine(leftPosition + (x > 0 ? thing : length) / 2, cell.Y * TileSize + 2 - TopY,
-                        leftPosition + (x > 0 ? thing : length) / 2, cell.Y * TileSize + TileSize - 2 - TopY, Colors.Black);
-                    Wb.DrawLine(leftPosition + (x > 0 ? thing : length) / 2 + TileSize / 2, cell.Y * TileSize + 2 - TopY,
-                        leftPosition + (x > 0 ? thing : length) / 2 + TileSize / 2, cell.Y * TileSize + TileSize - 2 - TopY,
-                        Colors.Black);
-                    //ToDo: Add a little filled triangle to each line so it's obvious which way the conveyor is pointing when paused.
-                    Wb.DrawLine(
-                        cell.X * TileSize + TileSize / 2 - LeftX, cell.Y * TileSize - TopY + 2,
-                        -LeftX + ((x > 0) ? cell.X * TileSize + 1 : (cell.X + 1) * TileSize - 2),
-                        cell.Y * TileSize + TileSize / 2 - TopY, Colors.Black);
-                    Wb.DrawLine(
-                        -LeftX + ((x > 0) ? cell.X * TileSize + 1 : (cell.X + 1) * TileSize - 2),
-                        cell.Y * TileSize + TileSize / 2 - TopY,
-                        cell.X * TileSize + TileSize / 2 - LeftX, (cell.Y + 1) * TileSize - TopY - 1, Colors.Black);
-                    if (ct.IsSorter)
-                    {
-                        Wb.DrawLine(leftPosition, cell.Y * TileSize - TopY + TileSize / 2,
-                            leftPosition + TileSize, cell.Y * TileSize - TopY + TileSize / 2, Colors.Black);
-                    }
-                }
-                else
-                {
-                    Wb.FillRectangle(
-                        leftPosition + 1, cell.Y * TileSize + 1 - TopY,
-                        leftPosition + TileSize - 2, cell.Y * TileSize + TileSize - 2 - TopY,
-                        color);
-                    Wb.DrawLine(
-                        leftPosition + 1, cell.Y * TileSize + 1 - TopY,
-                        leftPosition + TileSize - 1, cell.Y * TileSize - 1 - TopY,
-                        Colors.Gray);
-                    Wb.DrawLine(
-                        leftPosition + 1, cell.Y * TileSize + TileSize - 1 - TopY,
-                        leftPosition + TileSize - 1, cell.Y * TileSize + TileSize - 1 - TopY,
-                        Colors.Gray);
-
-                    Wb.DrawLine(leftPosition, cell.Y * TileSize - TopY + (y > 0 ? thing : length) / 2,
-                        leftPosition + TileSize, cell.Y * TileSize - TopY + (y > 0 ? thing : length) / 2, Colors.Black);
-                    Wb.DrawLine(leftPosition, cell.Y * TileSize - TopY + (y > 0 ? thing : length) / 2 + TileSize / 2,
-                        leftPosition + TileSize, cell.Y * TileSize - TopY + (y > 0 ? thing : length) / 2 + TileSize / 2,
-                        Colors.Black);
-
-                    Wb.DrawLine(
-                        (cell.X + 1) * TileSize - LeftX - 2, cell.Y * TileSize + TileSize / 2 - TopY,
-                        cell.X * TileSize + TileSize / 2 - LeftX,
-                        -TopY + (y > 0 ? cell.Y * TileSize + 1 : (cell.Y + 1) * TileSize) - 1, Colors.Black);
-
-                    Wb.DrawLine(
-                        cell.X * TileSize - LeftX + 2, cell.Y * TileSize + TileSize / 2 - TopY,
-                        cell.X * TileSize + TileSize / 2 - LeftX,
-                        -TopY + (y > 0 ? cell.Y * TileSize + 1 : (cell.Y + 1) * TileSize) - 1, Colors.Black);
-                    if (ct.IsSorter)
-                    {
-                        Wb.DrawLine(leftPosition + TileSize / 2, cell.Y * TileSize - TopY,
-                            leftPosition + TileSize / 2, cell.Y * TileSize + TileSize - 1 - TopY, Colors.Black);
-                    }
-                }
-            }
-        }
     }
 
     private void DrawTiles(int minX, int maxX, int minY, int maxY)
@@ -281,14 +183,7 @@ public partial class MainWindow
         if (Keyboard.IsKeyDown(Key.C) && !LastPressedKeys.Contains(Key.C))
         {
             //ToDo: The logic should be in Vm
-            Vm.ClickMode = (PathFinding.Shared.ViewModels.ClickMode)(((int)Vm.ClickMode + 1) % (Vm.MaxClickMode + 1));
             LastPressedKeys.Add(Key.C);
-        }
-
-        if (Keyboard.IsKeyDown(Key.R) && !LastPressedKeys.Contains(Key.R))
-        {
-            Vm.TryRotateConveyor(_point);
-            LastPressedKeys.Add(Key.R);
         }
 
         if (Keyboard.IsKeyDown(Key.Space) && !LastPressedKeys.Contains(Key.Space))
@@ -387,16 +282,16 @@ public partial class MainWindow
 
     private async void FindPath(object sender, RoutedEventArgs e) => await FindPathAsync();
 
-    private async Task FindPathAsync() => await Vm.PlayerPathFinding();
+    private async Task FindPathAsync() => Vm.PlayerPathFinding();
 
-    private async void UIElement_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private void UIElement_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         var point = PointToVector(e.GetPosition(sender as Image));
         _clicked = e.LeftButton == MouseButtonState.Pressed;
         Vm.LeftButtonClick = _clicked;
         try
         {
-            await Vm.HandleLeftClick(point);
+            Vm.HandleLeftClick(point);
         }
         catch (Exception ee)
         {
