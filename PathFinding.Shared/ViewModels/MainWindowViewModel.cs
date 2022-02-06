@@ -270,7 +270,11 @@ public class MainWindowViewModel : ObservableObject
         {
             lineNumber++;
             var row = mapStringResult.mapStringArray[lineNumber];
-            for (var y = 0; y < mapStringResult.Y; y++) { State.TileGrid[x, y].IsPassable = row[y] == '0'; }
+            for (var y = 0; y < mapStringResult.Y; y++)
+            {
+                State.TileGrid[x, y].IsPassable = row[y] == '0';
+                State.CellGrid[x, y].Passable = row[y] == '0';
+            }
         }
 
         TileWidth = State.X;
@@ -297,20 +301,37 @@ public class MainWindowViewModel : ObservableObject
 
     public async Task<(List<Cell> SolutionCells, Cell[,] AllCells, long TimeToSolve, DateTime thisDate)> PathFinding(Tile destination, Tile source, bool allowDiagonal, DateTime requestDate, bool forceWalkable = false)
     {
-        Cell destCell = new() { Id = destination.Id, HScore = 0, X = destination.X, Y = destination.Y, Passable = destination.IsPassable };
-        Cell sourceCell = new() { Id = source.Id, HScore = Math.Abs(source.X - destination.X) + Math.Abs(source.Y - destination.Y), X = source.X, Y = source.Y, Passable = source.IsPassable };
+        Cell destCell = new() { Id = destination.Id, X = destination.X, Y = destination.Y, Passable = destination.IsPassable };
+        Cell sourceCell = new() { Id = source.Id, X = source.X, Y = source.Y, Passable = source.IsPassable };
 
-        var cells = new Cell[State.X, State.Y];
-        var cellArray = GetStateCells(cells);
         if (forceWalkable) { destCell.Passable = true; sourceCell.Passable = true; }
 
         //Not really useful at the moment.
         //await Chunking(cells, requestDate);
         var x = DateTime.Now;
-        var solution = Solver.Solve(cells, cellArray, sourceCell, destCell, null, requestDate, allowDiagonal);
+        var solution =await Solver.SolveAsync(State.CellGrid, State.Cells, sourceCell, destCell, null, requestDate, allowDiagonal);
         Trace.WriteLine($"just SolveAsync: {(DateTime.Now - x).TotalMilliseconds}");
         //39ms to solve(1, 1) to(1109, 1109).
         //PathFinding: 107.9709
+        /*
+0 ms before resultThing.
+78 ms after resultThing.
+171 ms after prioritizing.
+174 ms with 1 iterations after prioritizing.
+175 ms after getting Solution cells.
+just SolveAsync: 177.1109
+176ms to solve (1,1) to (1109,1109).
+PathFinding: 181.1144
+176ms to solve (1,1) to (1,1109).
+
+0 ms before resultThing.
+909 ms after resultThing.
+1386 ms after prioritizing.
+1400 ms with 3331 iterations after prioritizing.
+1402 ms after getting Solution cells.
+just SolveAsync: 1410.6059
+1402ms to solve (1,1) to (3331,3331).
+         */
         //ToDo: most of the time is spent setting up the grid on-the-fly each/every time. I should be modifying it as things are modified.
         if (solution.SolutionCells is null || !solution.SolutionCells.Any()) return default;
         Trace.WriteLine($"{solution.TimeToSolve}ms to solve ({sourceCell.X},{sourceCell.Y}) to ({destCell.X},{destCell.Y}).");
@@ -365,7 +386,7 @@ public class MainWindowViewModel : ObservableObject
 
             foreach (var cell in solution.SolutionCells) { SolutionDictionary[key].Add((cell.X, cell.Y)); }
 
-            foreach (var cell in solution.AllCells) { notableCount = (cell.FCost > int.MaxValue / 3) ? notableCount + 1 : notableCount; }
+            //foreach (var cell in solution.AllCells) { notableCount = (cell.FCost > int.MaxValue / 3) ? notableCount + 1 : notableCount; }
 
             //CellsScored = notableCount; //Wrong at the moment
             //AnswerCells = solution.AllCells; //Wrong at the moment
@@ -458,6 +479,7 @@ public class MainWindowViewModel : ObservableObject
         if (AlreadyClicked.Contains(tile)) return;
         if (tile.TileRole == TileRole.Conveyor) return;
         tile.IsPassable = !tile.IsPassable;
+        State.CellGrid[tile.X, tile.Y].Passable = !State.CellGrid[tile.X, tile.Y].Passable;
         if (!tile.IsPassable)
         {
             tile.TileRole = TileRole.Nothing;

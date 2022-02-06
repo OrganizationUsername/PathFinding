@@ -54,12 +54,12 @@ public static class Chunker
                     if (superCell[a, b] is null) continue;
                     tempCellGrid[a, b] = new()
                     {
-                        Finished = false,
-                        GScore = superCell[a, b].GScore,
+                        //Finished = false,
+                        //GScore = superCell[a, b].GScore,
                         Id = superCell[a, b].Id,
                         X = superCell[a, b].X % chunkSize,
                         Y = superCell[a, b].Y % chunkSize,
-                        HScore = superCell[a, b].HScore,
+                        //HScore = superCell[a, b].HScore,
                         Passable = superCell[a, b].Passable,
                         //Destinations = new() { superCell[a, b] }
                     };

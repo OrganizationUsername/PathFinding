@@ -27,25 +27,41 @@ namespace PathFinding.Core
             s.Start();
             if (cellGrid is null) return (null, null, s.ElapsedMilliseconds, thisDate);
 
-            FastPriorityQueue<Cell> priorityQueue = new FastPriorityQueue<Cell>(cellGrid.GetLength(0) * cellGrid.GetLength(1));
-            var cellInfoPriorityQueue = new FastPriorityQueue<CellInfo>(cellGrid.GetLength(0) * cellGrid.GetLength(1));
-            var resultThing = CellInfo.GetCellGrid(AllCells, sourceCell, destCell, cellInfoPriorityQueue, cellGrid.GetLength(0), cellGrid.GetLength(1));
+            var cellInfoPriorityQueue = new FastPriorityQueue<CellInfo>(AllCells.Length);
+            Trace.WriteLine($"{s.ElapsedMilliseconds} ms before resultThing.");
 
-            sourceCell.GScore = 0;
-            //var count = 0;
+            var xExtent = cellGrid.GetLength(0);
+            var yExtent = cellGrid.GetLength(1);
+
+            var resultThing = CellInfo.GetCellGrid(AllCells, destCell, xExtent, yExtent);
+            resultThing[sourceCell.X, sourceCell.Y].GScore = 0;
+            Trace.WriteLine($"{s.ElapsedMilliseconds} ms after resultThing.");
+
+            for (int i = 0; i < xExtent; i++)
+            {
+                for (int j = 0; j < yExtent; j++)
+                {
+                    cellInfoPriorityQueue.Enqueue(resultThing[i, j], resultThing[i, j].FCost);
+                }
+            }
+            cellInfoPriorityQueue.UpdatePriority(resultThing[sourceCell.X, sourceCell.Y], 0);
+            Trace.WriteLine($"{s.ElapsedMilliseconds} ms after prioritizing.");
+
+            //sourceCell.GScore = 0;
+            var count = 0;
 
             while (cellInfoPriorityQueue.Contains(resultThing[destCell.X, destCell.Y]))
             {
                 if (!cellInfoPriorityQueue.Any()) return (null, null, s.ElapsedMilliseconds, thisDate);
-                //count++;
+                count++;
                 var changed = PathIteration(resultThing, resultThing[destCell.X, destCell.Y], targets, diagonal, cellInfoPriorityQueue);
                 if (changed == 0) return (null, null, s.ElapsedMilliseconds, thisDate);
             }
+            Trace.WriteLine($"{s.ElapsedMilliseconds} ms with {count} iterations after prioritizing.");
 
-            //Trace.WriteLine($"Time for path solving: {s.ElapsedMilliseconds}ms for {count} iterations");
-            //s.Restart();
             var solutionIds = GetSolutionCells(resultThing[sourceCell.X, sourceCell.Y], resultThing[destCell.X, destCell.Y], resultThing);
             if (solutionIds is null || !solutionIds.Any()) return (null, null, s.ElapsedMilliseconds, thisDate);
+            Trace.WriteLine($"{s.ElapsedMilliseconds} ms after getting Solution cells.");
             //Trace.WriteLine($"Time for path solution extraction: {s.ElapsedMilliseconds}"); //10
             var endMemory = GC.GetAllocatedBytesForCurrentThread();
             //Trace.WriteLine($"Allocated: {(endMemory - startMemory) / 1024} kb.");
@@ -159,36 +175,26 @@ namespace PathFinding.Core
         public int FCost => GScore + HScore;
         public bool Finished;
         public (int X, int Y)? Predecessor;
-        /// <summary>
-        /// The idea behind this is: this array can be calculated/tossed every PathFind and calculating it in this class can make it better async.
-        /// Something I need to check is... Why not just store id,x,y,passable,chunkId in here as well? Then it's completely standalone.
-        /// That would make it easier for this project to be plug-and-play. Also, then I could pass the cells as a ReadOnlySpan.
-        /// </summary>
-        /// <param name="cells"></param>
-        /// <param name="sourceCell"></param>
-        /// <param name="destCell"></param>
-        /// <param name="priorityQueue"></param>
-        /// <param name="xExtent"></param>
-        /// <param name="yExtent"></param>
-        /// <returns></returns>
-        public static CellInfo[,] GetCellGrid(ReadOnlySpan<Cell> cells, Cell sourceCell, Cell destCell, FastPriorityQueue<CellInfo> priorityQueue, int xExtent, int yExtent)
+        public override string ToString() => $"{Id}: {X}, {Y}, Passable: {Passable}, F: {FCost}, G: {GScore}, H: {HScore}. Finished= {Finished}";
+
+        public static CellInfo[,] GetCellGrid(Span<Cell> cells, Cell destCell, int xExtent, int yExtent)
         {
-            CellInfo[,] result = new CellInfo[xExtent, yExtent];
+            var result = new CellInfo[xExtent, yExtent];
+
             foreach (var t in cells)
             {
-                var cellInfo = new CellInfo() { Id = t.Id, X = t.X, Y = t.Y, Passable = t.Passable, ChunkId = t.ChunkId, GScore = int.MaxValue / 2, HScore = Math.Abs(t.X - destCell.X) + Math.Abs(t.Y - destCell.Y) };
-
-                if (t.X != sourceCell.X || t.Y != sourceCell.Y)
+                var cellInfo = new CellInfo()
                 {
-                    result[t.X, t.Y] = cellInfo;
-                    priorityQueue.Enqueue(cellInfo, cellInfo.FCost);
-                }
-                else
-                {
-                    cellInfo.GScore = 0;
-                    result[t.X, t.Y] = cellInfo;
-                    priorityQueue.Enqueue(result[cellInfo.X, cellInfo.Y], cellInfo.FCost);
-                }
+                    Id = t.Id,
+                    X = t.X,
+                    Y = t.Y,
+                    Passable = t.Passable,
+                    ChunkId = t.ChunkId,
+                    GScore = int.MaxValue / 2,
+                    HScore =
+                    10 * (Math.Abs(t.X - destCell.X) + Math.Abs(t.Y - destCell.Y))
+                };
+                result[t.X, t.Y] = cellInfo;
             }
             return result;
         }
@@ -201,14 +207,6 @@ namespace PathFinding.Core
         public int Y;
         public bool Passable;
         public int ChunkId = -1;
-        //Everything below is concerns of solver only. Shouldn't be handled/populated in MainViewModel.
-        public int GScore;
-        public int HScore;
-        public int FCost => GScore + HScore;
-        public bool Finished;
-        public (int X, int Y)? Predecessor;
-        //public List<Cell> Destinations;
-        public override string ToString() => $"{Id}: {X}, {Y}, Passable: {Passable}, F: {FCost}, G: {GScore}, H: {HScore}. Finished= {Finished}";
     }
 
     public sealed class SuperCell

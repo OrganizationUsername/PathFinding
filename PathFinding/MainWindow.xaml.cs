@@ -359,12 +359,12 @@ public partial class MainWindow
             const int textSize = 12;
             foreach (var tile in cellCosts)
             {
-                if (tile.FCost > int.MaxValue / 3) continue;
+                //if (tile.FCost > int.MaxValue / 3) continue;
                 var x = tile.X * TileSize - LeftX;
                 var y = tile.Y * TileSize - TopY;
                 if (x < 0 || x > Width || y < 0 || y > Height) continue;
-                var segoe12 = new FormattedText(tile.FCost.ToString(), CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new("Segoe UI"), textSize / 2.0, Brushes.Black, new(), 96);
-                drawingContext.DrawText(segoe12, new(x, y));
+                //var segoe12 = new FormattedText(tile.FCost.ToString(), CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new("Segoe UI"), textSize / 2.0, Brushes.Black, new(), 96);
+                //drawingContext.DrawText(segoe12, new(x, y));
             }
         }
         TextImage.Source = new DrawingImage(visual.Drawing);

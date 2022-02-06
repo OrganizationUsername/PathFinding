@@ -1,4 +1,5 @@
-﻿using PathFinding.Persistence;
+﻿using PathFinding.Core;
+using PathFinding.Persistence;
 
 namespace PathFinding.Shared.Models;
 
@@ -11,6 +12,8 @@ public class State
     public List<Tile> Tiles { get; set; } = new();
     public int TileSize { get; }
     public Tile[,] TileGrid { get => _tileGrid; set => _tileGrid = value; }
+    public Cell[,] CellGrid;
+    public Cell[] Cells;
 
     public State(int x, int y, int tileSize, IStatePersistence sp)
     {
@@ -19,6 +22,8 @@ public class State
         _sp = sp;
         TileSize = tileSize;
         TileGrid = new Tile[x, y];
+        CellGrid = new Cell[x, y];
+        Cells = new Cell[x * y];
         SetTiles();
     }
 
@@ -29,8 +34,11 @@ public class State
         {
             for (var y = 0; y < Y; y++)
             {
+                var tempCell = new Cell() { X = x, Y = y, Passable = true, Id = i };
+                Cells[i] = tempCell;
                 var tempTile = new Tile(x, y, true, i++);
                 TileGrid[x, y] = tempTile;
+                CellGrid[x, y] = tempCell;
                 Tiles.Add(tempTile);
             }
         }
