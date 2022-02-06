@@ -86,7 +86,7 @@ public static class Chunker
                     if (tempCellGrid[a, b] is null || !tempCellGrid[a, b].Passable) continue;
                     var destinationCell = tempCellGrid[a, b];
                     if (initialCell.Id == destinationCell.Id) continue;
-                    var result = await Solver.SolveAsync(tempCellGrid, initialCell, destinationCell, null, thisDate, allowDiagonal);
+                    var result = await Solver.SolveAsync(tempCellGrid, null, initialCell, destinationCell, null, thisDate, allowDiagonal);
                     //var resultCell = destinationCell.Destinations.First();
 
                     if (result.SolutionCells is null || !result.SolutionCells.Any())

@@ -15,54 +15,36 @@ namespace PathFinding.Core
         //TODO: Can also improve this one by separating nodes into groups, where each node in a group can touch all others. Keep them small, and the overall problem size will be reduced considerably.
         //Show groups with this: https://www.youtube.com/watch?v=f1WQpqZKoYw&ab_channel=Ms.Hearn
 
-        public static async Task<(List<Cell> SolutionCells, Cell[,] AllCells, long TimeToSolve, DateTime thisDate)> SolveAsync(Cell[,] cellGrid, Cell sourceCell, Cell destCell, IReadOnlyDictionary<(int, int), List<(int, int)>> targets, DateTime thisDate, bool diagonal = false)
+        public static async Task<(List<CellInfo> SolutionCells, Cell[,] AllCells, long TimeToSolve, DateTime thisDate)> SolveAsync(Cell[,] cellGrid, Cell[] AllCells, Cell sourceCell, Cell destCell, IReadOnlyDictionary<(int, int), List<(int, int)>> targets, DateTime thisDate, bool diagonal = false)
         {
-            return await Task.Run(() => Solve(cellGrid, sourceCell, destCell, targets, thisDate, diagonal));
+            return await Task.Run(() => Solve(cellGrid, AllCells.AsSpan(), sourceCell, destCell, targets, thisDate, diagonal));
         }
 
-        public static (List<Cell> SolutionCells, Cell[,] AllCells, long TimeToSolve, DateTime thisDate) Solve(Cell[,] cellGrid, Cell sourceCell, Cell destCell, IReadOnlyDictionary<(int, int), List<(int, int)>> targets, DateTime thisDate, bool diagonal = false)
+        public static (List<CellInfo> SolutionCells, Cell[,] AllCells, long TimeToSolve, DateTime thisDate) Solve(Cell[,] cellGrid, Span<Cell> AllCells, Cell sourceCell, Cell destCell, IReadOnlyDictionary<(int, int), List<(int, int)>> targets, DateTime thisDate, bool diagonal = false)
         {
             var startMemory = GC.GetAllocatedBytesForCurrentThread();
             var s = new Stopwatch();
             s.Start();
             if (cellGrid is null) return (null, null, s.ElapsedMilliseconds, thisDate);
-            //Trace.WriteLine($"Source at: {sourceCell.X},{sourceCell.Y}");
-            //Trace.WriteLine($"Destination at: {destCell.X},{destCell.Y}");
 
             FastPriorityQueue<Cell> priorityQueue = new FastPriorityQueue<Cell>(cellGrid.GetLength(0) * cellGrid.GetLength(1));
-            //var priorityQueue = new SimplePriorityQueue<Cell>();
-            for (var x = 0; x < cellGrid.GetLength(0); x++)
-            {
-                for (var y = 0; y < cellGrid.GetLength(1); y++)
-                {
-                    if (x == sourceCell.X && y == sourceCell.Y)
-                    {
-                        priorityQueue.Enqueue(cellGrid[x, y], 0);
-                    }
-                    else
-                    {
-                        if (cellGrid[x, y] is null) continue;
-                        var t = cellGrid[x, y];
-                        var score = Math.Abs(t.X - destCell.X) + Math.Abs(t.Y - destCell.Y);
-                        priorityQueue.Enqueue(cellGrid[x, y], score * 10 + int.MaxValue / 2);
-                    }
-                }
-            }
+            var cellInfoPriorityQueue = new FastPriorityQueue<CellInfo>(cellGrid.GetLength(0) * cellGrid.GetLength(1));
+            var resultThing = CellInfo.GetCellGrid(AllCells, sourceCell, destCell, cellInfoPriorityQueue, cellGrid.GetLength(0), cellGrid.GetLength(1));
 
             sourceCell.GScore = 0;
             //var count = 0;
 
-            while (priorityQueue.Contains(destCell))
+            while (cellInfoPriorityQueue.Contains(resultThing[destCell.X, destCell.Y]))
             {
-                if (!priorityQueue.Any()) return (null, null, s.ElapsedMilliseconds, thisDate);
+                if (!cellInfoPriorityQueue.Any()) return (null, null, s.ElapsedMilliseconds, thisDate);
                 //count++;
-                var changed = PathIteration(cellGrid, destCell, targets, diagonal, priorityQueue);
+                var changed = PathIteration(resultThing, resultThing[destCell.X, destCell.Y], targets, diagonal, cellInfoPriorityQueue);
                 if (changed == 0) return (null, null, s.ElapsedMilliseconds, thisDate);
             }
 
             //Trace.WriteLine($"Time for path solving: {s.ElapsedMilliseconds}ms for {count} iterations");
             //s.Restart();
-            var solutionIds = GetSolutionCells(sourceCell, destCell, cellGrid);
+            var solutionIds = GetSolutionCells(resultThing[sourceCell.X, sourceCell.Y], resultThing[destCell.X, destCell.Y], resultThing);
             if (solutionIds is null || !solutionIds.Any()) return (null, null, s.ElapsedMilliseconds, thisDate);
             //Trace.WriteLine($"Time for path solution extraction: {s.ElapsedMilliseconds}"); //10
             var endMemory = GC.GetAllocatedBytesForCurrentThread();
@@ -71,7 +53,7 @@ namespace PathFinding.Core
         }
 
         //[MethodImpl(MethodImplOptions.AggressiveInlining)] //Doesn't help.
-        public static int PathIteration(Cell[,] cellGrid, Cell destCell, IReadOnlyDictionary<(int, int), List<(int, int)>> targets, bool diagonal, FastPriorityQueue<Cell> priorityQueue)
+        public static int PathIteration(CellInfo[,] cellGrid, CellInfo destCell, IReadOnlyDictionary<(int, int), List<(int, int)>> targets, bool diagonal, FastPriorityQueue<CellInfo> priorityQueue)
         {
             //var s = new Stopwatch();
             //s.Start();
@@ -93,9 +75,9 @@ namespace PathFinding.Core
         }
 
         //[MethodImpl(MethodImplOptions.AggressiveInlining)] //Doesn't help.
-        public static List<Cell> GetSolutionCells(Cell sourceCell, Cell tempCell, Cell[,] cellGrid)
+        public static List<CellInfo> GetSolutionCells(CellInfo sourceCell, CellInfo tempCell, CellInfo[,] cellGrid)
         {
-            var tempList = new List<Cell>();
+            var tempList = new List<CellInfo>();
             do
             {
                 tempList.Add(tempCell);
@@ -105,7 +87,7 @@ namespace PathFinding.Core
             return tempList;
         }
 
-        private static List<Cell> GetNeighborCells(Cell sourceCell, Cell[,] cellGrid, Cell destCell, IReadOnlyDictionary<(int, int), List<(int, int)>> targets = null, bool diagonal = false)
+        private static List<CellInfo> GetNeighborCells(CellInfo sourceCell, CellInfo[,] cellGrid, CellInfo destCell, IReadOnlyDictionary<(int, int), List<(int, int)>> targets = null, bool diagonal = false)
         {
             var s = new Stopwatch();
             s.Start();
@@ -119,7 +101,7 @@ namespace PathFinding.Core
                 return neighbors.Select(x => cellGrid[x.Item1, x.Item2]).ToList();
             }
 
-            var results = new List<Cell>();
+            var results = new List<CellInfo>();
             for (var x = -1; x < 2; x++)
             {
                 if (sourceCell.X + x < 0 || sourceCell.X + x >= cellGrid.GetLength(0)) continue;
@@ -147,7 +129,7 @@ namespace PathFinding.Core
             return results;
         }
 
-        public static int SetNeighbor(Cell sourceCell, Cell neighborCell, int cost, FastPriorityQueue<Cell> priorityQueue)
+        public static int SetNeighbor(CellInfo sourceCell, CellInfo neighborCell, int cost, FastPriorityQueue<CellInfo> priorityQueue)
         {
             //var s = new Stopwatch();
             //s.Start();
@@ -176,7 +158,7 @@ namespace PathFinding.Core
         public int HScore;
         public int FCost => GScore + HScore;
         public bool Finished;
-
+        public (int X, int Y)? Predecessor;
         /// <summary>
         /// The idea behind this is: this array can be calculated/tossed every PathFind and calculating it in this class can make it better async.
         /// Something I need to check is... Why not just store id,x,y,passable,chunkId in here as well? Then it's completely standalone.
@@ -189,7 +171,7 @@ namespace PathFinding.Core
         /// <param name="xExtent"></param>
         /// <param name="yExtent"></param>
         /// <returns></returns>
-        public CellInfo[,] GetCellGrid(ReadOnlySpan<Cell> cells, Cell sourceCell, Cell destCell, FastPriorityQueue<CellInfo> priorityQueue, int xExtent, int yExtent)
+        public static CellInfo[,] GetCellGrid(ReadOnlySpan<Cell> cells, Cell sourceCell, Cell destCell, FastPriorityQueue<CellInfo> priorityQueue, int xExtent, int yExtent)
         {
             CellInfo[,] result = new CellInfo[xExtent, yExtent];
             foreach (var t in cells)
@@ -224,7 +206,6 @@ namespace PathFinding.Core
         public int HScore;
         public int FCost => GScore + HScore;
         public bool Finished;
-
         public (int X, int Y)? Predecessor;
         //public List<Cell> Destinations;
         public override string ToString() => $"{Id}: {X}, {Y}, Passable: {Passable}, F: {FCost}, G: {GScore}, H: {HScore}. Finished= {Finished}";

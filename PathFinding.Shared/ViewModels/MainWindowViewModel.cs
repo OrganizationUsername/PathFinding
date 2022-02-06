@@ -301,43 +301,41 @@ public class MainWindowViewModel : ObservableObject
         Cell sourceCell = new() { Id = source.Id, HScore = Math.Abs(source.X - destination.X) + Math.Abs(source.Y - destination.Y), X = source.X, Y = source.Y, Passable = source.IsPassable };
 
         var cells = new Cell[State.X, State.Y];
-
-        (destCell, sourceCell) = GetStateCells(destination, source, destCell, cells, sourceCell);
+        var cellArray = GetStateCells(cells);
         if (forceWalkable) { destCell.Passable = true; sourceCell.Passable = true; }
 
         //Not really useful at the moment.
         //await Chunking(cells, requestDate);
         var x = DateTime.Now;
-        var solution = await Solver.SolveAsync(cells, sourceCell, destCell, null, requestDate, allowDiagonal);
+        var solution = Solver.Solve(cells, cellArray, sourceCell, destCell, null, requestDate, allowDiagonal);
         Trace.WriteLine($"just SolveAsync: {(DateTime.Now - x).TotalMilliseconds}");
         //39ms to solve(1, 1) to(1109, 1109).
         //PathFinding: 107.9709
         //ToDo: most of the time is spent setting up the grid on-the-fly each/every time. I should be modifying it as things are modified.
         if (solution.SolutionCells is null || !solution.SolutionCells.Any()) return default;
         Trace.WriteLine($"{solution.TimeToSolve}ms to solve ({sourceCell.X},{sourceCell.Y}) to ({destCell.X},{destCell.Y}).");
-        return solution;
+        return (solution.SolutionCells.Select(x => new Cell() { X = x.X, Y = x.Y }).ToList(), solution.AllCells, solution.TimeToSolve, solution.thisDate);
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private (Cell destCell, Cell sourceCell) GetStateCells(Tile destination, Tile source, Cell destCell, Cell[,] cells, Cell sourceCell)
+    private Cell[] GetStateCells(Cell[,] cells)
     {
+        //ToDo: Make it so we always have an array of Cells ready to go, and they are updated when relevant tileStatuses change.
+        Cell[] cellArray = new Cell[cells.GetLength(0) * cells.GetLength(1)];
+        int i = 0;
         foreach (var t in State.Tiles)
         {
-            var hScore = Math.Abs(t.X - destCell.X) + Math.Abs(t.Y - destCell.Y);
             var cell = new Cell()
             {
-                HScore = hScore * 10,
-                GScore = int.MaxValue / 2,
                 X = t.X,
                 Y = t.Y,
                 Id = t.Id,
                 Passable = t.IsPassable
             };
-            if (t == destination) { destCell = cell; }
-            if (t == source) { sourceCell = cell; }
             cells[t.X, t.Y] = cell;
+            cellArray[i] = cell;
+            i++;
         }
-        return (destCell, sourceCell);
+        return cellArray;
     }
 
     public async Task PlayerPathFinding()
