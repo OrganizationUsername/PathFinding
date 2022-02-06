@@ -19,7 +19,7 @@ public class MainWindowViewModel : ObservableObject
     public string HoveredEntityDescription { get => _hoveredEntityDescription; set => SetProperty(ref _hoveredEntityDescription, value); }
     public State State { get; set; }
     public List<Tile> EntitiesToHighlight { get; set; } = new();
-    public List<Tile> AlreadyClicked { get; } = new();
+    public HashSet<Tile> AlreadyClicked { get; } = new();
     public Cell[,] AnswerCells { get; set; }
     private int _fps;
     private string _hoveredEntityDescription;
@@ -457,7 +457,7 @@ public class MainWindowViewModel : ObservableObject
 
     private async Task TryFlipElement(Tile tile)
     {
-        if (AlreadyClicked.Any(t => t.Id == tile.Id)) return; //ToDo: This could be done with storing a dictionary better, I think.
+        if (AlreadyClicked.Contains(tile)) return;
         if (tile.TileRole == TileRole.Conveyor) return;
         tile.IsPassable = !tile.IsPassable;
         if (!tile.IsPassable)

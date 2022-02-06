@@ -43,6 +43,16 @@ public partial class MainWindow
     private readonly Dictionary<Key, int> _numberKeys;
     private readonly Dictionary<Key, (int X, int Y)> _movementKeys;
     public List<Key> LastPressedKeys = new();
+    private DateTime dt;
+    private Stopwatch sw = new();
+    int minX;
+    int minY;
+    int maxX;
+    int maxY;
+    private int partialTile;
+    private int offset;
+
+
 
     public MainWindow()
     {
@@ -64,14 +74,13 @@ public partial class MainWindow
         //TODO: What if I got "R" to get a Rectangle you could throw in?
     }
 
-    [SuppressMessage("ReSharper.DPA", "DPA0002: Excessive memory allocations in SOH")]
     private async void RenderTickAsync(object sender, EventArgs e)
     {
         HandleKeyPress();
 
         Vm.Left = Math.Max(0, Vm.Left); Vm.Top = Math.Max(0, Vm.Top);
 
-        var dt = DateTime.Now;
+        dt = DateTime.Now;
         if (dt - _dt > TimeSpan.FromMilliseconds(1000))
         {
             Vm.Fps = _ticksPerSecond;
@@ -88,23 +97,22 @@ public partial class MainWindow
             Console.WriteLine(ee);
         }
 
-        var sw = new Stopwatch();
-        sw.Start();
+        sw.Restart();
         Wb.Lock();
         Wb.Clear(Colors.CornflowerBlue);
 
-        var minX = Math.Max(0, LeftX / TileSize - 1);
-        var minY = Math.Max(0, TopY / TileSize - 1);
-        var maxX = Math.Min(Vm.State.X, minX + Vm.PixelWidth / TileSize + 3);
-        var maxY = Math.Min(Vm.State.Y, minY + Vm.PixelHeight / TileSize + 3);
+        minX = Math.Max(0, LeftX / TileSize - 1);
+        minY = Math.Max(0, TopY / TileSize - 1);
+        maxX = Math.Min(Vm.State.X, minX + Vm.PixelWidth / TileSize + 3);
+        maxY = Math.Min(Vm.State.Y, minY + Vm.PixelHeight / TileSize + 3);
 
         DrawTiles(minX, maxX, minY, maxY);
         DrawSolutionCells(minX, maxX, minY, maxY);
 
         DrawConveyors();
 
-        var partialTile = TileSize / Math.Max(1, Vm.MaxCellNumber);
-        var offset = Vm.MaxCellNumber == 1 ? TileSize / 4 : 0;
+        partialTile = TileSize / Math.Max(1, Vm.MaxCellNumber);
+        offset = Vm.MaxCellNumber == 1 ? TileSize / 4 : 0;
         foreach (var item in Vm.Items)
         {
             var tile = item.ConveyorTile.Tile;
