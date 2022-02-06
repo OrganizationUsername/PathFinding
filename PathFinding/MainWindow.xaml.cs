@@ -272,8 +272,9 @@ public partial class MainWindow
         {
             if (Keyboard.IsKeyDown(kvp.Key))
             {
-                Vm.Left += 10 * kvp.Value.X;
-                Vm.Top += 10 * kvp.Value.Y;
+                var multiplier = Keyboard.IsKeyDown(Key.LeftCtrl) ? 10 : 1;
+                Vm.Left += 10 * kvp.Value.X * multiplier;
+                Vm.Top += 10 * kvp.Value.Y * multiplier;
                 DrawCostText(_cellBackup);
             }
         }

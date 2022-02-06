@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
 namespace PathFinding.Core
@@ -51,7 +52,8 @@ namespace PathFinding.Core
 
             sourceCell.GScore = 0;
             //var count = 0;
-            while (destCell.Finished == false)
+            
+            while (priorityQueue.Contains(destCell))
             {
                 if (!priorityQueue.Any()) return (null, null, s.ElapsedMilliseconds, thisDate);
                 //count++;
@@ -68,7 +70,8 @@ namespace PathFinding.Core
             //Trace.WriteLine($"Allocated: {(endMemory - startMemory) / 1024} kb.");
             return (solutionIds, cellGrid, s.ElapsedMilliseconds, thisDate);
         }
-
+        
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)] //Doesn't help.
         public static int PathIteration(Cell[,] cellGrid, Cell destCell, IReadOnlyDictionary<(int, int), List<(int, int)>> targets, bool diagonal, FastPriorityQueue<Cell> priorityQueue)
         {
             //var s = new Stopwatch();

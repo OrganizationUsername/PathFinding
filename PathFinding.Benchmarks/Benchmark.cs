@@ -7,7 +7,7 @@ namespace PathFinding.Benchmarks;
 [MemoryDiagnoser]
 public class Benchmark
 {
-    [Params(333)]
+    [Params(333, 1111)]
     public int Count { get; set; }
     int destinationX;
     int destinationY;
@@ -17,24 +17,24 @@ public class Benchmark
     private Cell[,] cellGrid;
     int xExtent;
     int yExtent;
-
+    private List<Cell> cellList;
 
     [GlobalSetup]
     public void GlobalSetup()
     {
         xExtent = Count;
         yExtent = Count;
-        //var cells = new List<Cell>(xExtent * yExtent); //1kb, 1740kb with 333x333
+        cellList = new List<Cell>(xExtent * yExtent); //1kb, 1740kb with 333x333
         cells = new Cell[(xExtent * yExtent)]; //1kb, 1740kb with 333x333
         //Cell * cells = stackalloc Cell[xExtent * yExtent]; //873k saved with 333x333 //Fails at 65535*2 and ~425x425
         //This isn't worth it since all of it will already be allocated in program.
         destinationX = xExtent / 2;
         destinationY = yExtent / 2;
         cellGrid = new Cell[xExtent, yExtent];
-        SimulateSetup(ref cells, ref cellGrid, xExtent, yExtent);
+        SimulateSetup(ref cells, ref cellGrid, ref cellList, xExtent, yExtent);
     }
 
-    public void SimulateSetup(ref Cell[] cells, ref Cell[,] cellGrid, int xExtent, int yExtent)
+    public void SimulateSetup(ref Cell[] cells, ref Cell[,] cellGrid, ref List<Cell> cellList, int xExtent, int yExtent)
     {
         var id = 0;
         for (ushort i = 0; i < xExtent; i++)
@@ -43,13 +43,14 @@ public class Benchmark
             {
                 var tempCell = new Cell { Id = id, X = i, Y = j };
                 cells[id] = tempCell;
+                cellList.Add(tempCell);
                 id++;
                 cellGrid[i, j] = tempCell;
             }
         }
     }
 
- 
+
     [Benchmark(Baseline = true)]
     public int SimpleSolve()
     {
@@ -57,10 +58,8 @@ public class Benchmark
         for (var i = 0; i < xExtent * yExtent; i++)
         {
             var c = cells[i];
-            var cost = (Math.Abs(c.X - destinationX) + Math.Abs(c.Y - destinationY));
             pq.Enqueue(c.Id, Math.Abs(c.X - destinationX) + Math.Abs(c.Y - destinationY));
         }
-
         _ = pq.Dequeue();
 
         var costThing = -1;
@@ -93,7 +92,6 @@ public class Benchmark
         for (var i = 0; i < xExtent * yExtent; i++)
         {
             var c = cells[i];
-            var cost = (Math.Abs(c.X - destinationX) + Math.Abs(c.Y - destinationY));
             fpq.Enqueue(c, Math.Abs(c.X - destinationX) + Math.Abs(c.Y - destinationY));
         }
 
@@ -122,18 +120,91 @@ public class Benchmark
     }
 
     [Benchmark]
+    public int FastSolveGrid()
+    {
+        FastPriorityQueue<Cell> fpq = new FastPriorityQueue<Cell>(xExtent * yExtent);
+        for (var x = 0; x < cellGrid.GetLength(0); x++)
+        {
+            for (var y = 0; y < cellGrid.GetLength(1); y++)
+            {
+                var c = cellGrid[x, y];
+                fpq.Enqueue(c, Math.Abs(c.X - destinationX) + Math.Abs(c.Y - destinationY));
+            }
+        }
+
+        _ = fpq.Dequeue();
+
+        var costThing = -1;
+        for (var i = 0; i < 9; i++)
+        {
+            if (costThing < 0)
+            {
+                var cell = fpq.Dequeue();
+                var cost = (Math.Abs(cell.X - destinationX) + Math.Abs(cell.Y - destinationY));
+                if (costThing < 0) costThing = cost;
+            }
+            else
+            {
+                var tempCell = fpq.First();
+                var TakeIt = costThing == (Math.Abs(tempCell.X - destinationX) + Math.Abs(tempCell.Y - destinationY));
+                if (TakeIt)
+                {
+                    costThing = -1;
+                }
+            }
+        }
+        return fpq.Count;
+    }
+
+    [Benchmark]
+    public int FastSolveUnchecked()
+    {
+        unchecked
+        {
+            FastPriorityQueue<Cell> fpq = new FastPriorityQueue<Cell>(xExtent * yExtent);
+            for (var i = 0; i < xExtent * yExtent; i++)
+            {
+                var c = cells[i];
+                fpq.Enqueue(c, Math.Abs(c.X - destinationX) + Math.Abs(c.Y - destinationY));
+            }
+
+            _ = fpq.Dequeue();
+
+            var costThing = -1;
+            for (var i = 0; i < 9; i++)
+            {
+                if (costThing < 0)
+                {
+                    var cell = fpq.Dequeue();
+                    var cost = (Math.Abs(cell.X - destinationX) + Math.Abs(cell.Y - destinationY));
+                    if (costThing < 0) costThing = cost;
+                }
+                else
+                {
+                    var tempCell = fpq.First();
+                    var TakeIt = costThing == (Math.Abs(tempCell.X - destinationX) + Math.Abs(tempCell.Y - destinationY));
+                    if (TakeIt)
+                    {
+                        costThing = -1;
+                    }
+                }
+            }
+            return fpq.Count;
+        }
+    }
+
+    [Benchmark]
     public int SimpleFromScratch()
     {
         var localCells = new Cell[(xExtent * yExtent)];
         var localCellGrid = new Cell[xExtent, yExtent];
-        SimulateSetup(ref localCells, ref localCellGrid, xExtent, yExtent);
-
+        var localCellList = new List<Cell>(xExtent * yExtent);
+        SimulateSetup(ref localCells, ref localCellGrid, ref localCellList, xExtent, yExtent);
 
         var pq = new SimplePriorityQueue<int>();
         for (var i = 0; i < xExtent * yExtent; i++)
         {
             var c = localCells[i];
-            var cost = (Math.Abs(c.X - destinationX) + Math.Abs(c.Y - destinationY));
             pq.Enqueue(c.Id, Math.Abs(c.X - destinationX) + Math.Abs(c.Y - destinationY));
         }
 
@@ -167,13 +238,13 @@ public class Benchmark
     {
         var localCells = new Cell[(xExtent * yExtent)];
         var localCellGrid = new Cell[xExtent, yExtent];
-        SimulateSetup(ref localCells, ref localCellGrid, xExtent, yExtent);
+        var localCellList = new List<Cell>(xExtent * yExtent);
+        SimulateSetup(ref localCells, ref localCellGrid, ref localCellList, xExtent, yExtent);
 
         FastPriorityQueue<Cell> fpq = new FastPriorityQueue<Cell>(xExtent * yExtent);
         for (var i = 0; i < xExtent * yExtent; i++)
         {
             var c = localCells[i];
-            var cost = (Math.Abs(c.X - destinationX) + Math.Abs(c.Y - destinationY));
             fpq.Enqueue(c, Math.Abs(c.X - destinationX) + Math.Abs(c.Y - destinationY));
         }
 

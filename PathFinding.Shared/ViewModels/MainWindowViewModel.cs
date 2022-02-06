@@ -255,6 +255,7 @@ public class MainWindowViewModel : ObservableObject
             SolutionDictionary.Clear();
             ConveyorTile.Tiles = State.TileGrid;
             for (var i = 1; i <= PlayerCount; i++) { PlayerDictionary.Add(i, (null, null)); SolutionDictionary.Add(i, new()); }
+            SetupMapString();
         }
     }
 
@@ -308,12 +309,16 @@ public class MainWindowViewModel : ObservableObject
         //await Chunking(cells, requestDate);
         var x = DateTime.Now;
         var solution = await Solver.SolveAsync(cells, sourceCell, destCell, null, requestDate, allowDiagonal);
-        Trace.WriteLine((DateTime.Now - x).TotalMilliseconds);
+        Trace.WriteLine($"just SolveAsync: {(DateTime.Now - x).TotalMilliseconds}");
+        //39ms to solve(1, 1) to(1109, 1109).
+        //PathFinding: 107.9709
+        //ToDo: most of the time is spent setting up the grid on-the-fly each/every time. I should be modifying it as things are modified.
         if (solution.SolutionCells is null || !solution.SolutionCells.Any()) return default;
         Trace.WriteLine($"{solution.TimeToSolve}ms to solve ({sourceCell.X},{sourceCell.Y}) to ({destCell.X},{destCell.Y}).");
         return solution;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private (Cell destCell, Cell sourceCell) GetStateCells(Tile destination, Tile source, Cell destCell, Cell[,] cells, Cell sourceCell)
     {
         foreach (var t in State.Tiles)
@@ -349,9 +354,13 @@ public class MainWindowViewModel : ObservableObject
             SolutionDictionary[key].Clear();
 
             if (destination is null || source is null) { continue; }
-
+            var x = DateTime.Now;
             var solution = await PathFinding(destination, source, AllowDiagonal, requestDate);
-
+            Trace.WriteLine($"PathFinding: {(DateTime.Now - x).TotalMilliseconds}");
+            //For 1111x1111 from 1,1 to 1110,1110
+            //just SolveAsync: 63.5167
+            //53ms to solve(1, 1) to(1109, 1109).
+            //PathFinding: 148.2944
             if (solution.SolutionCells is null || !solution.SolutionCells.Any() || solution.thisDate != LastRequestedPathFind) continue;
 
             Trace.WriteLine($"{solution.TimeToSolve}ms to solve ({source.X},{source.Y}) to ({source.X},{destination.Y}).");
@@ -577,7 +586,7 @@ public class MainWindowViewModel : ObservableObject
             int nextX = -1;
             int nextY = -1;
             ConveyorTile nextTile = null;
-            
+
             if (item.ConveyorTile.Location.X == 5 && item.ConveyorTile.Location.Y == 5) Debugger.Break();
 
             if (item.ConveyorTile.IsSorter)
