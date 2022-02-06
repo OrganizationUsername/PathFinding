@@ -61,7 +61,7 @@ public static class Chunker
                         Y = superCell[a, b].Y % chunkSize,
                         HScore = superCell[a, b].HScore,
                         Passable = superCell[a, b].Passable,
-                        Destinations = new() { superCell[a, b] }
+                        //Destinations = new() { superCell[a, b] }
                     };
                 }
             }
@@ -87,12 +87,12 @@ public static class Chunker
                     var destinationCell = tempCellGrid[a, b];
                     if (initialCell.Id == destinationCell.Id) continue;
                     var result = await Solver.SolveAsync(tempCellGrid, initialCell, destinationCell, null, thisDate, allowDiagonal);
-                    var resultCell = destinationCell.Destinations.First();
+                    //var resultCell = destinationCell.Destinations.First();
 
                     if (result.SolutionCells is null || !result.SolutionCells.Any())
                     {
                         /*Trace.WriteLine($"Could not navigate from {tempInitial.X}, {tempInitial.Y} to {resultCell.X}, {resultCell.Y}");*/
-                        destinationCell.Destinations.First().ChunkId = -1;
+                        //destinationCell.Destinations.First().ChunkId = -1;
                     }
                     else
                     {

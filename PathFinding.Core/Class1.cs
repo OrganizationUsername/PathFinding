@@ -42,7 +42,9 @@ namespace PathFinding.Core
                     else
                     {
                         if (cellGrid[x, y] is null) continue;
-                        priorityQueue.Enqueue(cellGrid[x, y], cellGrid[x, y].FCost);
+                        var t = cellGrid[x, y];
+                        var score = Math.Abs(t.X - destCell.X) + Math.Abs(t.Y - destCell.Y);
+                        priorityQueue.Enqueue(cellGrid[x, y], score * 10 + int.MaxValue / 2);
                     }
                 }
             }
@@ -160,19 +162,71 @@ namespace PathFinding.Core
         }
     }
 
-    public sealed class Cell : FastPriorityQueueNode
+    //Need to have a class like "CellInformation". Then I could have a reference to Cell, but many places in the code also require that the Cell know about the CellInformation. Which basically makes it like I have to copy everything.
+    //I guess I could have CellInformation[x,y] that I can use to look up Cell -> CellInformation without adding a reference directly in Cell (which would make other clels 
+
+    public class CellInfo : FastPriorityQueueNode
     {
         public int Id;
+        public int X;
+        public int Y;
+        public bool Passable;
+        public int ChunkId = -1;
         public int GScore;
         public int HScore;
         public int FCost => GScore + HScore;
+        public bool Finished;
+
+        /// <summary>
+        /// The idea behind this is: this array can be calculated/tossed every PathFind and calculating it in this class can make it better async.
+        /// Something I need to check is... Why not just store id,x,y,passable,chunkId in here as well? Then it's completely standalone.
+        /// That would make it easier for this project to be plug-and-play. Also, then I could pass the cells as a ReadOnlySpan.
+        /// </summary>
+        /// <param name="cells"></param>
+        /// <param name="sourceCell"></param>
+        /// <param name="destCell"></param>
+        /// <param name="priorityQueue"></param>
+        /// <param name="xExtent"></param>
+        /// <param name="yExtent"></param>
+        /// <returns></returns>
+        public CellInfo[,] GetCellGrid(ReadOnlySpan<Cell> cells, Cell sourceCell, Cell destCell, FastPriorityQueue<CellInfo> priorityQueue, int xExtent, int yExtent)
+        {
+            CellInfo[,] result = new CellInfo[xExtent, yExtent];
+            foreach (var t in cells)
+            {
+                var cellInfo = new CellInfo() { Id = t.Id, X = t.X, Y = t.Y, Passable = t.Passable, ChunkId = t.ChunkId, GScore = int.MaxValue / 2, HScore = Math.Abs(t.X - destCell.X) + Math.Abs(t.Y - destCell.Y) };
+
+                if (t.X != sourceCell.X || t.Y != sourceCell.Y)
+                {
+                    result[t.X, t.Y] = cellInfo;
+                    priorityQueue.Enqueue(cellInfo, cellInfo.FCost);
+                }
+                else
+                {
+                    cellInfo.GScore = 0;
+                    result[t.X, t.Y] = cellInfo;
+                    priorityQueue.Enqueue(result[cellInfo.X, cellInfo.Y], cellInfo.FCost);
+                }
+            }
+            return result;
+        }
+    }
+
+    public sealed class Cell : FastPriorityQueueNode
+    {
+        public int Id;
         public int X;
         public int Y;
-        public bool Finished;
         public bool Passable;
         public int ChunkId = -1;
+        //Everything below is concerns of solver only. Shouldn't be handled/populated in MainViewModel.
+        public int GScore;
+        public int HScore;
+        public int FCost => GScore + HScore;
+        public bool Finished;
+
         public (int X, int Y)? Predecessor;
-        public List<Cell> Destinations;
+        //public List<Cell> Destinations;
         public override string ToString() => $"{Id}: {X}, {Y}, Passable: {Passable}, F: {FCost}, G: {GScore}, H: {HScore}. Finished= {Finished}";
     }
 
